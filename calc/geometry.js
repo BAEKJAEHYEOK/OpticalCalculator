@@ -11,13 +11,13 @@ export const geometryCalculators = [
     category: 'geometry',
     name: '화각',
     en: 'Angle of View',
-    summary: '초점거리와 센서 크기로 화각을 구하고, 그 거리에서의 시야를 함께 냅니다',
+    summary: '초점거리와 센서 크기로 화각을 구하고, 그 WD 에서의 FOV 를 함께 냅니다',
     tags: ['화각', 'AOV', 'FOV', 'angle of view', '시야각', '수평', '수직', '대각'],
     related: ['lens-select', 'perspective-error'],
     formula: [
-      '배율 = 초점거리 / (작동거리 − 초점거리)',
-      '시야 (W) = 센서 크기 (W) / 배율',
-      '수평 화각 = 2 × atan( 시야 (W) / 2 / 작동거리 )',
+      '배율 = 초점거리 / (WD − 초점거리)',
+      'FOV (W) = 센서 크기 (W) / 배율',
+      '수평 화각 = 2 × atan( FOV (W) / 2 / WD )',
       '무한원 기준 화각 = 2 × atan( 센서 크기 (W) / 2 / 초점거리 )',
     ],
     inputs: [
@@ -25,23 +25,24 @@ export const geometryCalculators = [
       { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
       { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize', min: 0.1, step: 0.1 },
       { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 0.1, step: 0.1 },
-      { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
+      { key: 'wd', label: 'WD', en: 'Working Distance', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
     ],
     outputs: [
       { key: 'aovH', label: '수평 화각', en: 'Horizontal', unit: '°', digits: 2, primary: true },
       { key: 'aovV', label: '수직 화각', en: 'Vertical', unit: '°', digits: 2, primary: true },
       { key: 'aovD', label: '대각 화각', en: 'Diagonal', unit: '°', digits: 2 },
-      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', digits: 1 },
-      { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', digits: 1 },
+      { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', digits: 1 },
+      { key: 'fovH', label: 'FOV (H)', en: 'Field of View (H)', unit: 'mm', digits: 1 },
       { key: 'aovInf', label: '무한원 기준 수평 화각', en: 'At Infinity', unit: '°', digits: 2 },
-      // 수식이 센서 크기를 쓰므로 그 값도 화면에 있어야 따라 읽을 수 있다.
+      // 수식이 쓰는 값은 화면에도 있어야 따라 읽을 수 있다.
+      { key: 'm', label: '배율', en: 'Magnification', unit: '×', digits: 4 },
       { key: 'sensorW', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 2 },
       { key: 'sensorH', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 2 },
     ],
     compute(v) {
       const sensor = sensorSize(v.wpx, v.hpx, v.pixelUm);
-      // 시야는 렌즈 선정 계산기와 같은 방식으로 정확히 구하고,
-      // 화각은 그 시야가 작동거리에서 이루는 각으로 낸다. 두 계산기가 어긋나지 않는다.
+      // FOV 는 렌즈 선정 계산기와 같은 방식으로 정확히 구하고,
+      // 화각은 그 FOV 가 WD 에서 이루는 각으로 낸다. 두 계산기가 어긋나지 않는다.
       const m = v.f / (v.wd - v.f);
       const fovW = sensor.w / m;
       const fovH = sensor.h / m;
@@ -54,6 +55,7 @@ export const geometryCalculators = [
         fovH,
         // 카탈로그에 실리는 값은 무한원 초점 기준이라 근접 촬영에서는 이보다 좁아진다.
         aovInf: 2 * radToDeg(Math.atan(sensor.w / 2 / v.f)),
+        m,
         sensorW: sensor.w,
         sensorH: sensor.h,
         _sensor: sensor,
@@ -126,7 +128,7 @@ export const geometryCalculators = [
       if (v.refPx < 200) {
         warns.push({
           level: 'warn',
-          text: `기준 물체가 ${v.refPx} px 밖에 안 됩니다. 기준이 짧으면 축척 오차가 그대로 전체 측정에 실립니다. 시야를 가로지르는 큰 타깃을 쓰세요.`,
+          text: `기준 물체가 ${v.refPx} px 밖에 안 됩니다. 기준이 짧으면 축척 오차가 그대로 전체 측정에 실립니다. FOV 를 가로지르는 큰 타깃을 쓰세요.`,
         });
       }
       if (o.tolerancePct > 1) {
@@ -148,12 +150,12 @@ export const geometryCalculators = [
     tags: ['원근', 'perspective', '높이', '두께', '측정 오차', '비텔레센트릭', '배율 변화'],
     related: ['telecentric', 'angle-of-view'],
     formula: [
-      '크기 변화율 = 대상 높이차 / 작동거리',
+      '크기 변화율 = 대상 높이차 / WD',
       '측정 오차 = 측정 길이 × 크기 변화율',
-      '1 px 허용 높이차 = (대상 분해능 / 측정 길이) × 작동거리',
+      '1 px 허용 높이차 = (대상 분해능 / 측정 길이) × WD',
     ],
     inputs: [
-      { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
+      { key: 'wd', label: 'WD', en: 'Working Distance', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
       { key: 'heightMm', label: '대상 높이차', en: 'Height Difference', unit: 'mm', default: 5, min: 0, step: 0.1,
         hint: '기준면에서 얼마나 높거나 낮은지' },
       { key: 'lengthMm', label: '측정 길이', en: 'Measured Length', unit: 'mm', default: 50, min: 0.01, step: 1 },
@@ -201,7 +203,7 @@ export const geometryCalculators = [
     related: ['perspective-error', 'lens-select'],
     formula: [
       '측정 오차 = 2 × 대상 높이차 × tan(텔레센트릭도)',
-      '일반 렌즈 오차 = 측정 길이 × 대상 높이차 / 작동거리',
+      '일반 렌즈 오차 = 측정 길이 × 대상 높이차 / WD',
       '개선 배수 = 일반 렌즈 오차 / 측정 오차',
     ],
     inputs: [
@@ -209,8 +211,8 @@ export const geometryCalculators = [
         hint: '렌즈 스펙시트의 Telecentricity. 보통 0.05~0.5°' },
       { key: 'heightMm', label: '대상 높이차', en: 'Height Difference', unit: 'mm', default: 5, min: 0, step: 0.1 },
       { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
-      { key: 'wd', label: '비교용 작동거리', en: 'WD for Comparison', unit: 'mm', profile: 'workingDistance', min: 1, step: 1,
-        hint: '같은 조건의 일반 렌즈와 비교하기 위한 값' },
+      { key: 'wd', label: '비교용 WD', en: 'Working Distance for Comparison', unit: 'mm', profile: 'workingDistance', min: 1, step: 1,
+        hint: '같은 조건의 일반 렌즈와 비교하기 위한 WD' },
       { key: 'lengthMm', label: '측정 길이', en: 'Measured Length', unit: 'mm', default: 50, min: 0.01, step: 1 },
     ],
     outputs: [
@@ -258,29 +260,29 @@ export const geometryCalculators = [
     category: 'geometry',
     name: '카메라 경사 오차',
     en: 'Camera Tilt',
-    summary: '카메라가 기울어져 설치되면 시야 양끝의 거리와 배율이 달라집니다. 그 차이를 구합니다',
+    summary: '카메라가 기울어져 설치되면 FOV 양끝의 WD 와 배율이 달라집니다. 그 차이를 구합니다',
     tags: ['경사', 'tilt', '기울기', '키스톤', 'keystone', '사다리꼴', '설치', '정렬'],
     related: ['perspective-error', 'dof'],
     formula: [
-      '양끝 거리차 = 시야 (W) × sin(경사각)',
-      '양끝 배율차 = 양끝 거리차 / 작동거리',
-      '키스톤 왜곡(px) = 시야 (W) × 양끝 배율차 / 대상 분해능',
-      '필요 피사계심도 = 양끝 거리차',
+      '양끝 거리차 = FOV (W) × sin(경사각)',
+      '양끝 배율차 = 양끝 거리차 / WD',
+      '키스톤 왜곡(px) = FOV (W) × 양끝 배율차 / 대상 분해능',
+      '필요 DOF = 양끝 거리차',
     ],
     inputs: [
       { key: 'tiltDeg', label: '경사각', en: 'Tilt Angle', unit: '°', default: 2, min: 0, max: 89, step: 0.1,
         hint: '광축이 대상면 수직에서 벗어난 각도' },
-      { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
-      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
+      { key: 'wd', label: 'WD', en: 'Working Distance', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
+      { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
       { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
     ],
     outputs: [
-      { key: 'wdDiff', label: '양끝 거리차', en: 'WD Difference', unit: 'mm', digits: 2, primary: true },
+      { key: 'wdDiff', label: '양끝 WD 차', en: 'WD Difference', unit: 'mm', digits: 2, primary: true },
       { key: 'keystonePx', label: '키스톤 왜곡', en: 'Keystone', unit: 'px', digits: 1, primary: true },
       { key: 'scalePct', label: '양끝 배율차', en: 'Scale Difference', unit: '%', digits: 3 },
-      { key: 'nearWd', label: '가까운 쪽 거리', en: 'Near', unit: 'mm', digits: 1 },
-      { key: 'farWd', label: '먼 쪽 거리', en: 'Far', unit: 'mm', digits: 1 },
-      { key: 'neededDof', label: '필요 피사계심도', en: 'DOF Needed', unit: 'mm', digits: 2 },
+      { key: 'nearWd', label: '가까운 쪽 WD', en: 'Near', unit: 'mm', digits: 1 },
+      { key: 'farWd', label: '먼 쪽 WD', en: 'Far', unit: 'mm', digits: 1 },
+      { key: 'neededDof', label: '필요 DOF', en: 'Depth of Field Needed', unit: 'mm', digits: 2 },
     ],
     compute(v) {
       // 시야 양끝이 광축 방향으로 벌어지는 거리차.

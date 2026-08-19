@@ -32,22 +32,22 @@ export const lensCalculators = [
         name: '초점거리 계산',
         en: 'Focal Length',
         formula: [
-          '배율 (W) = 센서 크기 (W) / 시야 (W)',
-          '배율 (H) = 센서 크기 (H) / 시야 (H)',
+          '배율 (W) = 센서 크기 (W) / FOV (W)',
+          '배율 (H) = 센서 크기 (H) / FOV (H)',
           '배율 = 둘 중 작은 쪽 — 그 축이 제약축입니다',
-          '초점거리 = 작동거리 × 배율 / (1 + 배율)',
+          '초점거리 = WD × 배율 / (1 + 배율)',
         ],
         inputs: [
           ...SENSOR_INPUTS,
-          { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01 },
-          { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', default: 90, min: 0.01 },
-          { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1 },
+          { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', default: 120, min: 0.01 },
+          { key: 'fovH', label: 'FOV (H)', en: 'Field of View (H)', unit: 'mm', default: 90, min: 0.01 },
+          { key: 'wd', label: 'WD', en: 'Working Distance', unit: 'mm', profile: 'workingDistance', min: 1 },
           { key: 'imageCircle', label: '이미지 서클', en: 'Image Circle', unit: 'mm', default: 0, min: 0, optional: true },
         ],
         outputs: [
           { key: 'f', label: '필요 초점거리', en: 'Focal Length', unit: 'mm', digits: 2, primary: true },
-          { key: 'actualFovW', label: '실제 시야 (W)', en: 'Actual FOV (W)', unit: 'mm', digits: 1 },
-          { key: 'actualFovH', label: '실제 시야 (H)', en: 'Actual FOV (H)', unit: 'mm', digits: 1 },
+          { key: 'actualFovW', label: '실제 FOV (W)', en: 'Actual Field of View (W)', unit: 'mm', digits: 1 },
+          { key: 'actualFovH', label: '실제 FOV (H)', en: 'Actual Field of View (H)', unit: 'mm', digits: 1 },
           ...SHARED_OUTPUTS,
         ],
         compute(v) {
@@ -71,7 +71,7 @@ export const lensCalculators = [
           if (std.fovW) {
             warns.push({
               level: 'info',
-              text: o._axis + '축이 제약입니다. 가장 가까운 표준 렌즈 ' + std.f + ' mm 사용 시 실제 시야는 ' +
+              text: o._axis + '축이 제약입니다. 가장 가까운 표준 렌즈 ' + std.f + ' mm 사용 시 실제 FOV 는 ' +
                 std.fovW.toFixed(1) + ' × ' + std.fovH.toFixed(1) + ' mm 입니다.',
             });
           }
@@ -83,19 +83,19 @@ export const lensCalculators = [
         name: 'FOV 계산',
         en: 'Field of View',
         formula: [
-          '배율 = 초점거리 / (작동거리 − 초점거리)',
-          '시야 (W) = 센서 크기 (W) / 배율',
-          '시야 (H) = 센서 크기 (H) / 배율',
+          '배율 = 초점거리 / (WD − 초점거리)',
+          'FOV (W) = 센서 크기 (W) / 배율',
+          'FOV (H) = 센서 크기 (H) / 배율',
         ],
         inputs: [
           ...SENSOR_INPUTS,
           { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 1 },
-          { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1 },
+          { key: 'wd', label: 'WD', en: 'Working Distance', unit: 'mm', profile: 'workingDistance', min: 1 },
           { key: 'imageCircle', label: '이미지 서클', en: 'Image Circle', unit: 'mm', default: 0, min: 0, optional: true },
         ],
         outputs: [
-          { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', digits: 1, primary: true },
-          { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', digits: 1, primary: true },
+          { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', digits: 1, primary: true },
+          { key: 'fovH', label: 'FOV (H)', en: 'Field of View (H)', unit: 'mm', digits: 1, primary: true },
           ...SHARED_OUTPUTS,
         ],
         compute(v) {
@@ -127,22 +127,22 @@ export const lensCalculators = [
         name: 'WD 계산',
         en: 'Working Distance',
         formula: [
-          '배율 (W) = 센서 크기 (W) / 시야 (W)',
-          '배율 (H) = 센서 크기 (H) / 시야 (H)',
+          '배율 (W) = 센서 크기 (W) / FOV (W)',
+          '배율 (H) = 센서 크기 (H) / FOV (H)',
           '배율 = 둘 중 작은 쪽 — 그 축이 제약축입니다',
-          '작동거리 = 초점거리 × (1 + 배율) / 배율',
+          'WD = 초점거리 × (1 + 배율) / 배율',
         ],
         inputs: [
           ...SENSOR_INPUTS,
           { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 1 },
-          { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01 },
-          { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', default: 90, min: 0.01 },
+          { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', default: 120, min: 0.01 },
+          { key: 'fovH', label: 'FOV (H)', en: 'Field of View (H)', unit: 'mm', default: 90, min: 0.01 },
           { key: 'imageCircle', label: '이미지 서클', en: 'Image Circle', unit: 'mm', default: 0, min: 0, optional: true },
         ],
         outputs: [
-          { key: 'wd', label: '필요 작동거리', en: 'WD', unit: 'mm', digits: 1, primary: true },
-          { key: 'actualFovW', label: '실제 시야 (W)', en: 'Actual FOV (W)', unit: 'mm', digits: 1 },
-          { key: 'actualFovH', label: '실제 시야 (H)', en: 'Actual FOV (H)', unit: 'mm', digits: 1 },
+          { key: 'wd', label: '필요 WD', en: 'Required Working Distance', unit: 'mm', digits: 1, primary: true },
+          { key: 'actualFovW', label: '실제 FOV (W)', en: 'Actual Field of View (W)', unit: 'mm', digits: 1 },
+          { key: 'actualFovH', label: '실제 FOV (H)', en: 'Actual Field of View (H)', unit: 'mm', digits: 1 },
           ...SHARED_OUTPUTS,
         ],
         compute(v) {
@@ -178,22 +178,22 @@ export const lensCalculators = [
     tags: ['DOF', '심도', '착란원', 'depth of field', 'CoC', '초점심도'],
     related: ['lens-select', 'resolution'],
     formula: [
-      '허용 착란원 = 센서 픽셀 크기 × 착란원 배수',
-      '피사계심도 = 2 × F수 × 허용 착란원 × (1 + 배율) / 배율²',
+      'CoC = 센서 픽셀 크기 × 착란원 배수',
+      'DOF = 2 × F수 × CoC × (1 + 배율) / 배율²',
     ],
     inputs: [
       { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1 },
       { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
         min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치. 대상 위 분해능과 다릅니다' },
-      { key: 'cocMult', label: '착란원 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
-        hint: '허용 착란원을 센서 픽셀 크기의 몇 배로 볼지' },
+      { key: 'cocMult', label: 'CoC 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
+        hint: 'CoC 를 센서 픽셀 크기의 몇 배로 볼지' },
     ],
     outputs: [
-      { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 3, primary: true },
+      { key: 'dof', label: 'DOF', en: 'Depth of Field', unit: 'mm', digits: 3, primary: true },
       { key: 'nearHalf', label: '전방 ½', en: 'Near', unit: 'mm', digits: 3 },
       { key: 'farHalf', label: '후방 ½', en: 'Far', unit: 'mm', digits: 3 },
-      { key: 'coc', label: '허용 착란원', en: 'CoC', unit: 'µm', digits: 2 },
+      { key: 'coc', label: 'CoC', en: 'Circle of Confusion', unit: 'µm', digits: 2 },
       { key: 'focusDepth', label: '초점심도 (센서측)', en: 'Depth of Focus', unit: 'µm', digits: 2 },
       { key: 'airy', label: '회절 스팟', en: 'Airy Disk', unit: 'µm', digits: 2 },
     ],
@@ -241,14 +241,14 @@ export const lensCalculators = [
     tags: ['분해능', '해상도', 'µm/px', '검출', '나이퀴스트', 'resolution', 'nyquist', 'pixel pitch'],
     related: ['lens-select', 'dof'],
     formula: [
-      '대상 분해능 (W) = 시야 (W) × 1000 / 화소수 (W)',
-      '대상 분해능 (H) = 시야 (H) × 1000 / 화소수 (H)',
+      '대상 분해능 (W) = FOV (W) × 1000 / 화소수 (W)',
+      '대상 분해능 (H) = FOV (H) × 1000 / 화소수 (H)',
       '검출 한계 = 둘 중 나쁜 쪽 분해능 × 결함 판정 픽셀수',
       '나이퀴스트 한계 = 둘 중 나쁜 쪽 분해능 × 2',
     ],
     inputs: [
-      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01 },
-      { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', default: 90, min: 0.01 },
+      { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', default: 120, min: 0.01 },
+      { key: 'fovH', label: 'FOV (H)', en: 'Field of View (H)', unit: 'mm', default: 90, min: 0.01 },
       { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
       { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
       { key: 'minPixels', label: '결함 판정 픽셀수', en: 'Pixels on Defect', unit: 'px', default: 3, min: 1, step: 1,
@@ -260,7 +260,7 @@ export const lensCalculators = [
       { key: 'detectLimit', label: '검출 한계', en: 'Detection Limit', unit: 'µm', digits: 1 },
       { key: 'nyquist', label: '나이퀴스트 한계', en: 'Nyquist Limit', unit: 'µm', digits: 1 },
       { key: 'aspectSensor', label: '화소 종횡비', en: 'Sensor Aspect', unit: '', digits: 3 },
-      { key: 'aspectFov', label: '시야 종횡비', en: 'FOV Aspect', unit: '', digits: 3 },
+      { key: 'aspectFov', label: 'FOV 종횡비', en: 'FOV Aspect Ratio', unit: '', digits: 3 },
     ],
     compute(v) {
       const umPerPxW = (v.fovW * 1000) / v.wpx;
@@ -293,7 +293,7 @@ export const lensCalculators = [
         warns.push({
           level: 'warn',
           text: '분해능 (W) 와 (H) 가 ' + (skew * 100).toFixed(1) +
-            ' % 어긋납니다. 시야 종횡비와 화소 종횡비가 달라 한 축에 여백이 생긴다는 뜻입니다.',
+            ' % 어긋납니다. FOV 종횡비와 화소 종횡비가 달라 한 축에 여백이 생긴다는 뜻입니다.',
         });
       }
       if (v.minPixels < 3) {
@@ -316,9 +316,9 @@ export const lensCalculators = [
     related: ['dof', 'aperture'],
     formula: [
       '유효 F수 = F수 × (1 + 배율)',
-      '허용 착란원 = 센서 픽셀 크기 × 착란원 배수',
-      '초점심도 = 2 × 유효 F수 × 허용 착란원',
-      '피사계심도 = 초점심도 / 배율²',
+      'CoC = 센서 픽셀 크기 × 착란원 배수',
+      '초점심도 = 2 × 유효 F수 × CoC',
+      'DOF = 초점심도 / 배율²',
     ],
     inputs: [
       { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
@@ -326,15 +326,15 @@ export const lensCalculators = [
         hint: '렌즈 조리개값' },
       { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
         min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치' },
-      { key: 'cocMult', label: '착란원 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
-        hint: '허용 착란원을 센서 픽셀 크기의 몇 배로 볼지' },
+      { key: 'cocMult', label: 'CoC 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
+        hint: 'CoC 를 센서 픽셀 크기의 몇 배로 볼지' },
     ],
     outputs: [
       { key: 'focusDepth', label: '초점심도', en: 'Depth of Focus', unit: 'µm', digits: 1, primary: true },
       { key: 'halfDepth', label: '편측 여유', en: 'Half', unit: 'µm', digits: 1 },
       { key: 'effectiveN', label: '유효 F수', en: 'Effective F-number', unit: '', digits: 2 },
-      { key: 'coc', label: '허용 착란원', en: 'CoC', unit: 'µm', digits: 2 },
-      { key: 'dof', label: '대응 피사계심도', en: 'DOF', unit: 'mm', digits: 3 },
+      { key: 'coc', label: 'CoC', en: 'Circle of Confusion', unit: 'µm', digits: 2 },
+      { key: 'dof', label: '대응 DOF', en: 'Depth of Field', unit: 'mm', digits: 3 },
     ],
     compute(v) {
       const coc = v.pixelUm * v.cocMult;
@@ -385,7 +385,7 @@ export const lensCalculators = [
       '유효 F수 = F수 × (1 + 배율)',
       '에어리 지름 = 2.44 × 파장 × 유효 F수',
       '회절 차단 주파수 = 1 / (파장 × 유효 F수)',
-      '상측 개구수 = 1 / (2 × 유효 F수)',
+      'NA = 1 / (2 × 유효 F수)',
     ],
     inputs: [
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
@@ -401,7 +401,7 @@ export const lensCalculators = [
       { key: 'airy', label: '에어리 지름', en: 'Airy Disk', unit: 'µm', digits: 2, primary: true },
       { key: 'airyPerPixel', label: '픽셀 대비', en: 'Airy / Pixel', unit: '×', digits: 2 },
       { key: 'cutoff', label: '회절 차단 주파수', en: 'Cutoff', unit: 'lp/mm', digits: 0 },
-      { key: 'na', label: '상측 개구수', en: 'Image-side NA', unit: '', digits: 4 },
+      { key: 'na', label: 'NA (상측)', en: 'Image-side NA', unit: '', digits: 4 },
       { key: 'lightLoss', label: '광량 손실', en: 'Light Loss', unit: 'stop', digits: 2 },
     ],
     compute(v) {

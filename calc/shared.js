@@ -82,7 +82,7 @@ export const SENSOR_INPUTS = [
 export const SHARED_OUTPUTS = [
   { key: 'm', label: '배율', en: 'Magnification', unit: '×', digits: 4 },
   { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', digits: 2 },
-  { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 2 },
+  { key: 'dof', label: 'DOF', en: 'Depth of Field', unit: 'mm', digits: 2 },
   { key: 'sensorW', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 2 },
   { key: 'sensorH', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 2 },
   { key: 'airy', label: '회절 스팟', en: 'Airy Disk', unit: 'µm', digits: 2 },

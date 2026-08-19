@@ -244,7 +244,7 @@ export const lensDesignCalculators = [
     related: ['thin-lens', 'lens-maker'],
     formula: [
       '1 / 합성 초점거리 = 1 / 첫 렌즈 초점거리 + 1 / 둘째 렌즈 초점거리 − 렌즈 간격 / (첫 렌즈 초점거리 × 둘째 렌즈 초점거리)',
-      '후초점거리 = 합성 초점거리 × (첫 렌즈 초점거리 − 렌즈 간격) / 첫 렌즈 초점거리',
+      'BFD = 합성 초점거리 × (첫 렌즈 초점거리 − 렌즈 간격) / 첫 렌즈 초점거리',
     ],
     inputs: [
       { key: 'f1', label: '첫 렌즈 초점거리', en: 'Focal Length 1', unit: 'mm', default: 100, step: 0.1,
@@ -254,7 +254,7 @@ export const lensDesignCalculators = [
     ],
     outputs: [
       { key: 'f', label: '합성 초점거리', en: 'Combined Focal Length', unit: 'mm', digits: 2, primary: true },
-      { key: 'bfd', label: '후초점거리', en: 'Back Focal Distance', unit: 'mm', digits: 2, primary: true },
+      { key: 'bfd', label: 'BFD', en: 'Back Focal Distance', unit: 'mm', digits: 2, primary: true },
       { key: 'power', label: '합성 굴절력', en: 'Optical Power', unit: 'diopter', digits: 4 },
       { key: 'power1', label: '첫 렌즈 굴절력', en: 'Power 1', unit: 'diopter', digits: 4 },
       { key: 'power2', label: '둘째 렌즈 굴절력', en: 'Power 2', unit: 'diopter', digits: 4 },

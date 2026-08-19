@@ -96,7 +96,7 @@ export const lightingCalculators = [
         warn() {
           return [{
             level: 'info',
-            text: '반각이 좁을수록 같은 광속으로 더 밝게 비출 수 있습니다. 시야보다 조금만 넓게 잡는 것이 효율적입니다.',
+            text: '반각이 좁을수록 같은 광속으로 더 밝게 비출 수 있습니다. FOV 보다 조금만 넓게 잡는 것이 효율적입니다.',
           }];
         },
       },
@@ -287,27 +287,27 @@ export const lightingCalculators = [
     category: 'lighting',
     name: '조사 영역 · 균일도',
     en: 'Light Coverage',
-    summary: '조명이 시야를 덮는지, 가장자리가 얼마나 어두워지는지 구합니다',
+    summary: '조명이 FOV 를 덮는지, 가장자리가 얼마나 어두워지는지 구합니다',
     tags: ['조사', '균일도', 'coverage', 'uniformity', '조명 크기', 'cos4', '가장자리', '반각'],
     related: ['illuminance', 'inverse-square'],
     formula: [
       '조사 지름 = 발광부 크기 + 2 × 조명 거리 × tan(조명 반각)',
-      '시야 끝 각도 = atan( 시야 (W) / 2 / 조명 거리 )',
-      '가장자리 조도비 = cos⁴(시야 끝 각도)',
+      'FOV 끝 각도 = atan( FOV (W) / 2 / 조명 거리 )',
+      '가장자리 조도비 = cos⁴(FOV 끝 각도)',
     ],
     inputs: [
       { key: 'emitterMm', label: '발광부 크기', en: 'Emitter Size', unit: 'mm', default: 50, min: 0, step: 1,
         hint: '링 조명이면 바깥 지름' },
       { key: 'halfAngle', label: '조명 반각', en: 'Half Angle', unit: '°', default: 30, min: 0.1, max: 89, step: 1 },
       { key: 'distance', label: '조명 거리', en: 'Distance', unit: 'mm', default: 300, min: 1, step: 10 },
-      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
+      { key: 'fovW', label: 'FOV (W)', en: 'Field of View (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
     ],
     outputs: [
       { key: 'coverage', label: '조사 지름', en: 'Coverage', unit: 'mm', digits: 1, primary: true },
-      { key: 'marginPct', label: '시야 대비 여유', en: 'Margin', unit: '%', digits: 1, primary: true },
+      { key: 'marginPct', label: 'FOV 대비 여유', en: 'Margin', unit: '%', digits: 1, primary: true },
       { key: 'edgeRatio', label: '가장자리 조도비', en: 'Edge Ratio', unit: '%', digits: 1 },
       { key: 'edgeStops', label: '가장자리 손실', en: 'Edge Falloff', unit: 'stop', digits: 2 },
-      { key: 'edgeAngle', label: '시야 끝 각도', en: 'Edge Angle', unit: '°', digits: 2 },
+      { key: 'edgeAngle', label: 'FOV 끝 각도', en: 'Edge Angle', unit: '°', digits: 2 },
     ],
     compute(v) {
       const coverage = v.emitterMm + 2 * v.distance * Math.tan(degToRad(v.halfAngle));
@@ -327,18 +327,18 @@ export const lightingCalculators = [
       if (o.coverage < v.fovW) {
         warns.push({
           level: 'danger',
-          text: `조사 지름 ${o.coverage.toFixed(1)} mm 가 시야 ${v.fovW} mm 보다 좁습니다. 시야 가장자리가 조명 밖으로 나갑니다.`,
+          text: `조사 지름 ${o.coverage.toFixed(1)} mm 가 FOV ${v.fovW} mm 보다 좁습니다. FOV 가장자리가 조명 밖으로 나갑니다.`,
         });
       } else if (o.marginPct < 20) {
         warns.push({
           level: 'warn',
-          text: `여유가 ${o.marginPct.toFixed(0)} % 뿐입니다. 조명 가장자리는 광량이 급격히 떨어지므로 시야보다 넉넉히 덮는 것이 좋습니다.`,
+          text: `여유가 ${o.marginPct.toFixed(0)} % 뿐입니다. 조명 가장자리는 광량이 급격히 떨어지므로 FOV 보다 넉넉히 덮는 것이 좋습니다.`,
         });
       }
       if (o.edgeRatio < 70) {
         warns.push({
           level: 'warn',
-          text: `시야 끝 조도가 중심의 ${o.edgeRatio.toFixed(0)} % 입니다. 조명을 멀리 두거나 확산판을 쓰면 균일해집니다.`,
+          text: `FOV 끝 조도가 중심의 ${o.edgeRatio.toFixed(0)} % 입니다. 조명을 멀리 두거나 확산판을 쓰면 균일해집니다.`,
         });
       }
       return warns;

@@ -207,7 +207,7 @@ export function opticalLayout({ wd, f, fovH, sensorH, m }) {
     dimH(sensorX, lensX, axisY - 76, `상거리 Image Distance  ${format(b, 2)} mm`),
     dimH(focalX, lensX, axisY - 50, `초점거리 Focal Length  ${format(f, 2)} mm`, { accent: true }),
 
-    dimH(lensX, objectX, axisY + objectHalf + 48, `작동거리 Working Distance  ${format(wd, 1)} mm`, {
+    dimH(lensX, objectX, axisY + objectHalf + 48, `WD  ${format(wd, 1)} mm`, {
       accent: true,
     }),
 
@@ -621,9 +621,9 @@ export function angleOfViewView({ aovDeg, wd, fovW, f }) {
 
     label(apexX + 52, apexY - 10, `${format(aovDeg, 2)}°`, 'd-label d-accent-fill', 'start'),
     // 원뿔 높이와 무관하게 고정 위치에 둔다. 화각이 넓어도 아래 설명과 겹치지 않는다.
-    dimH(apexX, apexX + reach, VB_H - 42, `작동거리 ${format(wd, 1)} mm`, { below: false }),
-    dimV(apexY - half, apexY + half, apexX + reach + 22, `시야 ${format(fovW, 1)} mm`, { accent: true }),
-    label(VB_W / 2, VB_H - 8, `초점거리 ${format(f, 2)} mm  ·  화각 = 2 · atan(시야 / 2 · 작동거리)`, 'd-label-sm')
+    dimH(apexX, apexX + reach, VB_H - 42, `WD ${format(wd, 1)} mm`, { below: false }),
+    dimV(apexY - half, apexY + half, apexX + reach + 22, `FOV (W) ${format(fovW, 1)} mm`, { accent: true }),
+    label(VB_W / 2, VB_H - 8, `초점거리 ${format(f, 2)} mm  ·  화각 = 2 × atan( FOV (W) / 2 / WD )`, 'd-label-sm')
   );
 }
 

@@ -170,8 +170,8 @@ export const waveCalculators = [
       { key: 'n', label: '굴절률', en: 'Index', unit: '', default: 1.52, min: 1, step: 0.001, hint: GLASS_HINT },
       { key: 'theta1', label: '입사각', en: 'Incidence', unit: '°', default: 0, min: 0, max: 89.9, step: 1,
         hint: '수직으로 보면 0' },
-      { key: 'dofMm', label: '피사계심도', en: 'DOF', unit: 'mm', default: 3.26, min: 0.001, step: 0.01,
-        hint: '초점 이동이 이 안에 들어오는지 확인용' },
+      { key: 'dofMm', label: 'DOF', en: 'Depth of Field', unit: 'mm', default: 3.26, min: 0.001, step: 0.01,
+        hint: '초점 이동이 이 DOF 안에 들어오는지 확인용' },
     ],
     outputs: [
       { key: 'focusShift', label: '초점 이동', en: 'Focus Shift', unit: 'mm', digits: 4, primary: true },
@@ -179,7 +179,7 @@ export const waveCalculators = [
       { key: 'theta2', label: '내부 굴절각', en: 'Internal Angle', unit: '°', digits: 3 },
       { key: 'pathLength', label: '유리 내 광로', en: 'Path in Glass', unit: 'mm', digits: 3 },
       { key: 'surfaceLossPct', label: '양면 반사 손실', en: 'Surface Loss', unit: '%', digits: 2 },
-      { key: 'dofRatio', label: '심도 대비 초점 이동', en: 'vs DOF', unit: '%', digits: 1 },
+      { key: 'dofRatio', label: 'DOF 대비 초점 이동', en: 'vs DOF', unit: '%', digits: 1 },
     ],
     compute(v) {
       const t1 = degToRad(v.theta1);

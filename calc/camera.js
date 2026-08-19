@@ -207,8 +207,8 @@ export const cameraCalculators = [
         en: 'Max Frame Rate',
         formula: [
           '프레임당 용량(byte) = 화소수 (W) × 화소수 (H) × 비트 깊이 / 8',
-          '최대 프레임레이트 = 인터페이스 대역폭 / 프레임당 용량',
-          '프레임 주기 = 1 / 최대 프레임레이트',
+          '최대 fps = 인터페이스 대역폭 / 프레임당 용량',
+          '프레임 주기 = 1 / 최대 fps',
         ],
         inputs: [
           { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
@@ -419,7 +419,7 @@ export const cameraCalculators = [
     related: ['data-rate', 'sensor-format'],
     formula: [
       '출력 화소수 = ROI 화소수 / 비닝',
-      '예상 프레임레이트 = 전체 읽기 fps × ( 화소수 (H) / 출력 행수 )',
+      '예상 fps = 전체 읽기 fps × ( 화소수 (H) / 출력 행수 )',
       '감도 배수 = 비닝²',
       '실효 픽셀 크기 = 센서 픽셀 크기 × 비닝',
     ],
@@ -545,7 +545,7 @@ export const cameraCalculators = [
     tags: ['다이나믹 레인지', 'dynamic range', 'SNR', '잡음', 'noise', '포화', 'full well', '비트 깊이'],
     related: ['exposure-gain', 'sensor-format'],
     formula: [
-      '다이나믹 레인지(dB) = 20 × log₁₀(포화 전자수 / 읽기 잡음)',
+      'DR(dB) = 20 × log₁₀(포화 전자수 / 읽기 잡음)',
       '최대 SNR(dB) = 10 × log₁₀(포화 전자수)',
       '필요 비트 깊이 = log₂(포화 전자수 / 읽기 잡음)',
     ],
@@ -556,7 +556,7 @@ export const cameraCalculators = [
       { key: 'bitDepth', label: '비트 깊이', en: 'Bit Depth', unit: 'bit', default: 12, min: 1, step: 1 },
     ],
     outputs: [
-      { key: 'drDb', label: '다이나믹 레인지', en: 'Dynamic Range', unit: 'dB', digits: 1, primary: true },
+      { key: 'drDb', label: 'DR', en: 'Dynamic Range', unit: 'dB', digits: 1, primary: true },
       { key: 'maxSnrDb', label: '최대 SNR', en: 'Max SNR', unit: 'dB', digits: 1, primary: true },
       { key: 'drRatio', label: '계조 비율', en: 'Ratio', unit: ': 1', digits: 0 },
       { key: 'neededBits', label: '필요 비트 깊이', en: 'Bits Needed', unit: 'bit', digits: 2 },
