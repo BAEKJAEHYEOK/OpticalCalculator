@@ -12,6 +12,7 @@ import socket
 import socketserver
 import sys
 import threading
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -151,15 +152,36 @@ def port_in_use(port: int) -> bool:
         return probe.connect_ex(('127.0.0.1', port)) == 0
 
 
+# 포트를 쓰고 있는 것이 이 개발 서버인지, 관계없는 다른 프로세스인지 가른다.
+# __mtime 은 이 서버만 응답하므로 그것으로 구별한다.
+def is_our_server(port: int) -> bool:
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/__mtime', timeout=0.8) as res:
+            return res.status == 200
+    except Exception:
+        return False
+
+
 if __name__ == '__main__':
     if port_in_use(PORT):
-        print(f'포트 {PORT} 를 이미 다른 프로세스가 쓰고 있습니다.')
-        print('예전에 띄워 둔 서버가 남아 있으면 그쪽이 응답해서 수정이 반영되지 않습니다.')
+        url = f'http://127.0.0.1:{PORT}/index.html'
+        # 이미 이 개발 서버가 떠 있는 경우가 대부분이다. 그럴 땐 막을 이유가 없다.
+        if is_our_server(PORT):
+            print('개발 서버가 이미 실행 중입니다. 브라우저만 엽니다.')
+            print()
+            print(f'  {url}')
+            print()
+            print('  파일을 고치면 그 창이 알아서 새로고침합니다.')
+            print('  서버를 끄려면 먼저 띄워 둔 창을 닫으세요.')
+            webbrowser.open(url)
+            sys.exit(0)
+
+        print(f'포트 {PORT} 를 이 프로그램이 아닌 다른 것이 쓰고 있습니다.')
+        print('그대로 두면 그쪽이 응답해서 고친 내용이 반영되지 않습니다.')
         print()
-        print('정리하려면 (관리자 권한 불필요):')
-        print('  powershell -Command "Get-Process python | Stop-Process -Force"')
-        print()
-        print(f'또는 다른 포트로 띄우세요:  run.bat {PORT + 1}')
+        print('아래 중 하나를 하세요.')
+        print(f'  1) 다른 포트로 띄우기 :  run.bat {PORT + 1}')
+        print('  2) 남은 파이썬 정리   :  powershell -Command "Get-Process python | Stop-Process -Force"')
         sys.exit(1)
 
     print('Optical Calculator - 개발 서버')
