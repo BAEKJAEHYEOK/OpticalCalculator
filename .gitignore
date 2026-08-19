@@ -1,0 +1,10 @@
+# Capacitor 빌드 산출물. 소스는 저장소 루트의 웹 파일이 원본이다.
+node_modules/
+www/
+android/
+*.apk
+*.aab
+*.keystore
+
+# 서명 정보는 절대 커밋하지 않는다.
+keystore.properties

@@ -1,0 +1,21 @@
+{
+  "name": "optical-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "머신비전 광학 계산기 — 웹(PWA)과 안드로이드 APK 를 같은 소스로 만든다",
+  "scripts": {
+    "build": "node scripts/build-www.mjs",
+    "sync": "npm run build && npx cap sync android",
+    "android:init": "npx cap add android",
+    "apk": "npm run sync && cd android && gradlew.bat assembleDebug",
+    "apk:release": "npm run sync && cd android && gradlew.bat assembleRelease",
+    "open:android": "npx cap open android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

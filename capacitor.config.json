@@ -1,0 +1,11 @@
+{
+  "appId": "com.baekjaehyeok.opticalcalculator",
+  "appName": "Optical Calculator",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
