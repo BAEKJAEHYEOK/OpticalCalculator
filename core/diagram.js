@@ -147,52 +147,65 @@ export function fovRect(fovW, fovH, { targetW, targetH, axis, note } = {}) {
 
 /* ---------- 광학 배치 측면도 ---------- */
 
-// 가로 위치는 WD 에 대한 f 의 비율만 반영한다. 센서·대상 크기까지 실제 축척으로
-// 그리면 납작해져 읽히지 않으므로 세로는 개략적으로 잡는다.
+// 렌즈 왼쪽(센서 쪽)과 오른쪽(대상 쪽)은 축척이 서로 다르다. 상거리 57 mm 와
+// 작동거리 300 mm 를 같은 축척으로 그리면 한쪽이 뭉개져 읽히지 않기 때문이다.
+// 다만 각 구간 안에서는 비율을 지킨다 — 센서 쪽에서 f 는 b 에 대해 1/(1+m) 이다.
 export function opticalLayout({ wd, f, fovH, sensorH, m }) {
   const VB_W = 380;
-  const VB_H = 215;
-  const axisY = 92;
-  const sensorX = 46;
-  const lensX = 150;
+  const VB_H = 260;
+  const axisY = 132;
+  const sensorX = 52;
+  const lensX = 156;
   const objectX = 340;
 
-  const span = objectX - lensX;
-  const fPx = Math.max(20, Math.min(span * 0.8, (f / wd) * span));
+  // 상거리. 렌즈에서 센서까지의 실제 거리는 f 가 아니라 이 값이다.
+  const b = f * (1 + m);
+
+  const imageSpan = lensX - sensorX;
+  // 초점은 렌즈 뒤 f 지점. 상거리보다 짧고, 그 비율이 곧 1/(1+m) 이다.
+  const fPx = Math.max(14, Math.min(imageSpan - 6, imageSpan / (1 + m)));
+  const focalX = lensX - fPx;
 
   const sensorHalf = 26;
   const objectHalf = 46;
 
   const kids = [
-    // 광축
-    s('line', { x1: sensorX, y1: axisY, x2: objectX, y2: axisY, class: 'd-axis' }),
+    s('line', { x1: sensorX - 12, y1: axisY, x2: objectX, y2: axisY, class: 'd-axis' }),
 
-    // 대상에서 나온 광선이 렌즈를 지나 센서에 거꾸로 맺힌다.
-    s('line', { x1: objectX, y1: axisY - objectHalf, x2: lensX, y2: axisY - objectHalf * 0.45, class: 'd-ray' }),
-    s('line', { x1: lensX, y1: axisY - objectHalf * 0.45, x2: sensorX, y2: axisY + sensorHalf, class: 'd-ray' }),
-    s('line', { x1: objectX, y1: axisY + objectHalf, x2: lensX, y2: axisY + objectHalf * 0.45, class: 'd-ray' }),
-    s('line', { x1: lensX, y1: axisY + objectHalf * 0.45, x2: sensorX, y2: axisY - sensorHalf, class: 'd-ray' }),
+    // 대상의 위·아래 끝에서 나온 주광선이 렌즈 중심을 지나며 상이 뒤집힌다.
+    // 꺾이는 지점은 반드시 렌즈 중심이어야 한다.
+    s('polyline', {
+      points: `${objectX},${axisY - objectHalf} ${lensX},${axisY} ${sensorX},${axisY + sensorHalf}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
+    s('polyline', {
+      points: `${objectX},${axisY + objectHalf} ${lensX},${axisY} ${sensorX},${axisY - sensorHalf}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
 
-    // 센서
+    // 초점 위치 표식
+    s('line', { x1: focalX, y1: axisY - 6, x2: focalX, y2: axisY + 6, class: 'd-limit' }),
+
     s('rect', { x: sensorX - 5, y: axisY - sensorHalf, width: 10, height: sensorHalf * 2, class: 'd-sensor' }),
-    label(sensorX, axisY - sensorHalf - 10, '센서', 'd-label-sm'),
-    label(sensorX, axisY + sensorHalf + 18, `${format(sensorH, 2)} mm`, 'd-label-sm'),
-
-    // 렌즈
     s('ellipse', { cx: lensX, cy: axisY, rx: 7, ry: 34, class: 'd-lens' }),
-    label(lensX, axisY - 44, '렌즈', 'd-label-sm'),
-
-    // 대상
     s('rect', { x: objectX - 5, y: axisY - objectHalf, width: 10, height: objectHalf * 2, class: 'd-object' }),
-    label(objectX, axisY - objectHalf - 10, '대상', 'd-label-sm'),
 
-    // 초점거리는 렌즈에서 시작하는 구간으로 표시한다.
-    dimH(lensX, lensX + fPx, axisY - 62, `f  ${format(f, 2)} mm`, { accent: true }),
+    label(sensorX, axisY + sensorHalf + 18, '센서', 'd-label-sm'),
+    label(sensorX, axisY + sensorHalf + 34, `${format(sensorH, 2)} mm`, 'd-label-sm'),
+    label(lensX, axisY + 50, '렌즈', 'd-label-sm'),
+    label(objectX, axisY + objectHalf + 18, '대상', 'd-label-sm'),
 
-    // 작동거리는 렌즈에서 대상까지
-    dimH(lensX, objectX, axisY + objectHalf + 34, `WD  ${format(wd, 1)} mm`, { below: true }),
+    // 상거리와 초점거리를 같은 쪽에 겹쳐 그려 f < b 관계가 보이게 한다.
+    dimH(sensorX, lensX, axisY - 76, `b  ${format(b, 2)} mm`),
+    dimH(focalX, lensX, axisY - 50, `f  ${format(f, 2)} mm`, { accent: true }),
 
-    label(VB_W / 2, VB_H - 8, `배율 ${format(m, 4)} ×  ·  시야 세로 ${format(fovH, 1)} mm  ·  개략도(축척 아님)`, 'd-label-sm'),
+    dimH(lensX, objectX, axisY + objectHalf + 40, `WD  ${format(wd, 1)} mm`, { accent: true }),
+
+    // 렌즈~센서 구간을 f 로 오해하기 쉬워 관계식을 그림 안에 적어 둔다.
+    label(VB_W / 2, VB_H - 26, '렌즈 → 센서 = 상거리 b = f × (1 + m)', 'd-label-sm'),
+    label(VB_W / 2, VB_H - 10, `배율 ${format(m, 4)} ×  ·  개략도 — 좌우 축척이 다름`, 'd-label-sm'),
   ];
 
   return frame('광학 배치 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
