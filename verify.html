@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공식 검증 — Optical Calculator</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  main { max-width: 820px; }
+  pre { font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+  .pass { color: #1d9e75; }
+  .fail { color: #e24b4a; font-weight: 600; }
+  .head { color: var(--text-2); margin-top: 14px; display: block; }
+  .note { color: var(--text-3); }
+</style>
+</head>
+<body>
+<header class="app-bar"><div class="app-bar-inner"><span class="app-title">공식 검증</span>
+<span class="app-sub">계산 코어만 UI 없이 확인합니다</span></div></header>
+<main><pre id="out"></pre></main>
+
+<script type="module">
+import { lensCalculators } from './calc/lens.js';
+
+const out = document.getElementById('out');
+let failed = 0;
+
+const line = (cls, text) => {
+  const s = document.createElement('span');
+  s.className = cls;
+  s.textContent = text + '\n';
+  out.append(s);
+};
+const head = (t) => line('head', '\n' + t);
+
+function check(label, actual, expected, tol = 0.01) {
+  const ok = Number.isFinite(actual) && Math.abs(actual - expected) <= tol;
+  if (!ok) failed++;
+  line(ok ? 'pass' : 'fail',
+    `${ok ? 'PASS' : 'FAIL'}  ${label}: ${Number(actual).toFixed(4)}  (기대 ${Number(expected).toFixed(4)})`);
+}
+
+const byId = (id) => lensCalculators.find((c) => c.id === id);
+const modeOf = (id, mid) => byId(id).modes.find((m) => m.id === mid);
+
+const cam = { wpx: 5120, hpx: 5120, pixelUm: 4.5, fNumber: 5.6, imageCircle: 0 };
+
+head('[렌즈 선정 · 초점거리 구하기]  센서 23.04 mm 정사각, FOV 120×90, WD 300');
+const vf = { ...cam, fovW: 120, fovH: 90, wd: 300 };
+const of_ = modeOf('lens-select', 'f').compute(vf);
+check('배율 m', of_.m, 23.04 / 120, 1e-9);
+check('초점거리 f', of_.f, (300 * (23.04 / 120)) / (1 + 23.04 / 120));
+check('실제 시야 가로', of_.actualFovW, 120, 1e-9);
+check('실제 시야 세로', of_.actualFovH, 120, 1e-9);
+check('해상도 µm/px', of_.umPerPx, 4.5 / (23.04 / 120));
+line(of_._axis === '가로' ? 'pass' : 'fail', `${of_._axis === '가로' ? 'PASS' : 'FAIL'}  제약축: ${of_._axis} (기대 가로)`);
+if (of_._axis !== '가로') failed++;
+modeOf('lens-select', 'f').warn(vf, of_).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+
+head('[왕복 검증]  f 로 구한 값을 시야 모드에 넣으면 원래 FOV 가 나와야 한다');
+const ofov = modeOf('lens-select', 'fov').compute({ ...cam, f: of_.f, wd: 300 });
+check('시야 가로 복원', ofov.fovW, 120);
+check('배율 복원', ofov.m, of_.m, 1e-9);
+
+head('[왕복 검증]  f 로 구한 값을 작동거리 모드에 넣으면 원래 WD 가 나와야 한다');
+const owd = modeOf('lens-select', 'wd').compute({ ...cam, f: of_.f, fovW: 120, fovH: 90 });
+check('작동거리 복원', owd.wd, 300);
+
+head('[피사계심도]  m 0.192, F5.6, 픽셀 4.5 µm, 착란원 ×2');
+const vd = { m: 0.192, fNumber: 5.6, pixelUm: 4.5, cocMult: 2 };
+const od = byId('dof').compute(vd);
+check('허용 착란원 µm', od.coc, 9, 1e-9);
+check('피사계심도 mm', od.dof, (2 * 5.6 * 9 * 1.192) / (0.192 * 0.192) / 1000);
+check('초점심도 µm', od.focusDepth, 2 * 5.6 * 9, 1e-9);
+check('회절 스팟 µm', od.airy, 2.44 * 0.55 * 5.6 * 1.192);
+byId('dof').warn(vd, od).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+
+head('[교차 검증]  렌즈 선정이 내놓은 심도와 DOF 계산기 결과가 같아야 한다');
+check('심도 일치', of_.dof, od.dof, 1e-9);
+
+head('[해상도 · 검출 한계]  FOV 120×90, 5120×5120 px, 판정 3 px');
+const vr = { fovW: 120, fovH: 90, wpx: 5120, hpx: 5120, minPixels: 3 };
+const or_ = byId('resolution').compute(vr);
+check('가로 µm/px', or_.umPerPxW, (120 * 1000) / 5120);
+check('세로 µm/px', or_.umPerPxH, (90 * 1000) / 5120);
+check('검출 한계 µm', or_.detectLimit, ((120 * 1000) / 5120) * 3);
+byId('resolution').warn(vr, or_).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+
+head('[경계 조건]  WD < f 는 결상 불가 조건이므로 위험 경고가 나와야 한다');
+const bad = modeOf('lens-select', 'fov');
+const vb = { ...cam, f: 50, wd: 40 };
+const wb = bad.warn(vb, bad.compute(vb));
+const hasDanger = wb.some((w) => w.level === 'danger');
+if (!hasDanger) failed++;
+line(hasDanger ? 'pass' : 'fail', `${hasDanger ? 'PASS' : 'FAIL'}  WD < f 위험 경고 발생`);
+
+head(failed === 0 ? '전체 통과' : `실패 ${failed} 건`);
+document.title = failed === 0 ? '검증 통과' : `검증 실패 ${failed}`;
+</script>
+</body>
+</html>
