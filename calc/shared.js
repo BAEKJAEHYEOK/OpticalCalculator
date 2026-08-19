@@ -71,8 +71,8 @@ export function nearestStandard(f, sensor, wd) {
 // en 은 화면에 국문 라벨과 함께 표시되는 통용 영문 용어다.
 // 렌즈 스펙시트가 전부 영문이라 대조하며 쓰려면 둘 다 보여야 한다.
 export const SENSOR_INPUTS = [
-  { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-  { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+  { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+  { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
   { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
     min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치. 대상 위 분해능과 다릅니다' },
   { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
@@ -83,8 +83,8 @@ export const SHARED_OUTPUTS = [
   { key: 'm', label: '배율', en: 'Magnification', unit: '×', digits: 4 },
   { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', digits: 2 },
   { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 2 },
-  { key: 'sensorW', label: '센서 가로', en: 'Sensor W', unit: 'mm', digits: 2 },
-  { key: 'sensorH', label: '센서 세로', en: 'Sensor H', unit: 'mm', digits: 2 },
+  { key: 'sensorW', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 2 },
+  { key: 'sensorH', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 2 },
   { key: 'airy', label: '회절 스팟', en: 'Airy Disk', unit: 'µm', digits: 2 },
 ];
 

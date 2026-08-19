@@ -16,13 +16,13 @@ export const geometryCalculators = [
     related: ['lens-select', 'perspective-error'],
     formula: [
       '배율 = 초점거리 / (작동거리 − 초점거리)',
-      '시야 = 센서 크기 / 배율',
-      '화각 = 2 × atan( 시야 / 2 / 작동거리 )',
-      '무한원 기준 화각 = 2 × atan( 센서 크기 / 2 / 초점거리 )',
+      '시야 (W) = 센서 크기 (W) / 배율',
+      '수평 화각 = 2 × atan( 시야 (W) / 2 / 작동거리 )',
+      '무한원 기준 화각 = 2 × atan( 센서 크기 (W) / 2 / 초점거리 )',
     ],
     inputs: [
-      { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-      { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+      { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+      { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
       { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize', min: 0.1, step: 0.1 },
       { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 0.1, step: 0.1 },
       { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
@@ -31,9 +31,12 @@ export const geometryCalculators = [
       { key: 'aovH', label: '수평 화각', en: 'Horizontal', unit: '°', digits: 2, primary: true },
       { key: 'aovV', label: '수직 화각', en: 'Vertical', unit: '°', digits: 2, primary: true },
       { key: 'aovD', label: '대각 화각', en: 'Diagonal', unit: '°', digits: 2 },
-      { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', digits: 1 },
-      { key: 'fovH', label: '시야 세로', en: 'FOV H', unit: 'mm', digits: 1 },
+      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', digits: 1 },
+      { key: 'fovH', label: '시야 (H)', en: 'FOV (H)', unit: 'mm', digits: 1 },
       { key: 'aovInf', label: '무한원 기준 수평 화각', en: 'At Infinity', unit: '°', digits: 2 },
+      // 수식이 센서 크기를 쓰므로 그 값도 화면에 있어야 따라 읽을 수 있다.
+      { key: 'sensorW', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 2 },
+      { key: 'sensorH', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 2 },
     ],
     compute(v) {
       const sensor = sensorSize(v.wpx, v.hpx, v.pixelUm);
@@ -51,6 +54,8 @@ export const geometryCalculators = [
         fovH,
         // 카탈로그에 실리는 값은 무한원 초점 기준이라 근접 촬영에서는 이보다 좁아진다.
         aovInf: 2 * radToDeg(Math.atan(sensor.w / 2 / v.f)),
+        sensorW: sensor.w,
+        sensorH: sensor.h,
         _sensor: sensor,
       };
     },
@@ -257,16 +262,16 @@ export const geometryCalculators = [
     tags: ['경사', 'tilt', '기울기', '키스톤', 'keystone', '사다리꼴', '설치', '정렬'],
     related: ['perspective-error', 'dof'],
     formula: [
-      '양끝 거리차 = 시야 가로 × sin(경사각)',
+      '양끝 거리차 = 시야 (W) × sin(경사각)',
       '양끝 배율차 = 양끝 거리차 / 작동거리',
-      '키스톤 왜곡(px) = 시야 가로 × 양끝 배율차 / 대상 분해능',
+      '키스톤 왜곡(px) = 시야 (W) × 양끝 배율차 / 대상 분해능',
       '필요 피사계심도 = 양끝 거리차',
     ],
     inputs: [
       { key: 'tiltDeg', label: '경사각', en: 'Tilt Angle', unit: '°', default: 2, min: 0, max: 89, step: 0.1,
         hint: '광축이 대상면 수직에서 벗어난 각도' },
       { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
-      { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', default: 120, min: 0.01, step: 1 },
+      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
       { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
     ],
     outputs: [

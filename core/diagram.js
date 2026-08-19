@@ -112,7 +112,9 @@ function dimV(y1, y2, x, text, { accent = false } = {}) {
 
 // 실제 시야를 실선으로, 검사 대상을 점선으로 겹쳐 그린다.
 // 두 사각형의 차이가 곧 남는 여백이고, 붙어 있는 축이 제약축이다.
-export function fovRect(fovW, fovH, { targetW, targetH, axis, note } = {}) {
+// name 을 주면 치수 라벨을 바꿔 쓸 수 있다. 센서 사각형처럼 시야가 아닌 것을
+// 그릴 때 "FOV" 로 잘못 적히는 것을 막는다.
+export function fovRect(fovW, fovH, { targetW, targetH, axis, note, name = 'FOV' } = {}) {
   const VB_W = 340;
   const VB_H = 210;
   const boxW = 190;
@@ -126,8 +128,8 @@ export function fovRect(fovW, fovH, { targetW, targetH, axis, note } = {}) {
 
   const kids = [
     s('rect', { x: x0, y: y0, width: w, height: h, class: 'd-fov' }),
-    dimH(x0, x0 + w, y0 - 14, `FOV (W)  ${format(fovW, 1)} mm`, { accent: true }),
-    dimV(y0, y0 + h, x0 - 16, `FOV (H)  ${format(fovH, 1)} mm`, { accent: true }),
+    dimH(x0, x0 + w, y0 - 14, `${name} (W)  ${format(fovW, 1)} mm`, { accent: true }),
+    dimV(y0, y0 + h, x0 - 16, `${name} (H)  ${format(fovH, 1)} mm`, { accent: true }),
   ];
 
   if (targetW && targetH) {

@@ -41,21 +41,21 @@ export const cameraCalculators = [
         name: '센서 크기 계산',
         en: 'Sensor Size',
         formula: [
-          '센서 가로 = 가로 화소수 × 센서 픽셀 크기',
-          '센서 세로 = 세로 화소수 × 센서 픽셀 크기',
-          '대각 = √(센서 가로² + 센서 세로²)',
+          '센서 크기 (W) = 화소수 (W) × 센서 픽셀 크기',
+          '센서 크기 (H) = 화소수 (H) × 센서 픽셀 크기',
+          '대각 = √( 센서 크기 (W)² + 센서 크기 (H)² )',
         ],
         inputs: [
-          { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-          { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+          { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+          { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
           { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
             min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치' },
         ],
         outputs: [
-          { key: 'w', label: '센서 가로', en: 'Width', unit: 'mm', digits: 3, primary: true },
-          { key: 'h', label: '센서 세로', en: 'Height', unit: 'mm', digits: 3, primary: true },
+          { key: 'w', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 3, primary: true },
+          { key: 'h', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 3, primary: true },
           { key: 'diag', label: '대각', en: 'Diagonal', unit: 'mm', digits: 3 },
-          { key: 'megapixel', label: '화소수', en: 'Resolution', unit: 'MP', digits: 2 },
+          { key: 'megapixel', label: '총 화소수', en: 'Resolution', unit: 'MP', digits: 2 },
           { key: 'aspect', label: '종횡비', en: 'Aspect Ratio', unit: '', digits: 3 },
           { key: 'area', label: '수광 면적', en: 'Active Area', unit: 'mm²', digits: 1 },
         ],
@@ -74,7 +74,12 @@ export const cameraCalculators = [
           };
         },
         diagram(v, o) {
-          return [fovRect(o.w, o.h, { note: `대각 ${o.diag.toFixed(2)} mm · ${o.megapixel.toFixed(2)} MP` })];
+          return [
+            fovRect(o.w, o.h, {
+              name: '센서 크기',
+              note: `대각 ${o.diag.toFixed(2)} mm · ${o.megapixel.toFixed(2)} MP`,
+            }),
+          ];
         },
         warn(v, o) {
           const warns = [];
@@ -97,19 +102,19 @@ export const cameraCalculators = [
         name: '픽셀 피치 계산',
         en: 'Pixel Pitch',
         formula: [
-          '센서 픽셀 크기(µm) = 센서 대각(mm) × 1000 / √(가로 화소수² + 세로 화소수²)',
+          '센서 픽셀 크기(µm) = 센서 대각(mm) × 1000 / √( 화소수 (W)² + 화소수 (H)² )',
         ],
         inputs: [
           { key: 'diag', label: '센서 대각', en: 'Diagonal', unit: 'mm', default: 11, min: 0.1, step: 0.01,
             hint: '2/3" = 11 mm, 1" = 16 mm' },
-          { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-          { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+          { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+          { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
         ],
         outputs: [
           { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', digits: 3, primary: true },
-          { key: 'w', label: '센서 가로', en: 'Width', unit: 'mm', digits: 3 },
-          { key: 'h', label: '센서 세로', en: 'Height', unit: 'mm', digits: 3 },
-          { key: 'megapixel', label: '화소수', en: 'Resolution', unit: 'MP', digits: 2 },
+          { key: 'w', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 3 },
+          { key: 'h', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 3 },
+          { key: 'megapixel', label: '총 화소수', en: 'Resolution', unit: 'MP', digits: 2 },
         ],
         compute(v) {
           const pixelUm = (v.diag * 1000) / Math.hypot(v.wpx, v.hpx);
@@ -147,13 +152,13 @@ export const cameraCalculators = [
         name: '데이터 레이트 계산',
         en: 'Data Rate',
         formula: [
-          '프레임당 용량(byte) = 가로 화소수 × 세로 화소수 × 비트 깊이 / 8',
+          '프레임당 용량(byte) = 화소수 (W) × 화소수 (H) × 비트 깊이 / 8',
           '데이터 레이트 = 프레임당 용량 × 프레임레이트',
           '대역폭 사용률 = 데이터 레이트 / 인터페이스 대역폭',
         ],
         inputs: [
-          { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-          { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+          { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+          { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
           { key: 'bitDepth', label: '비트 깊이', en: 'Bit Depth', unit: 'bit', default: 8, min: 1, step: 1,
             hint: '모노 8bit 이 기본. 12bit 이면 1.5배' },
           { key: 'fps', label: '프레임레이트', en: 'Frame Rate', unit: 'fps', default: 30, min: 0.01, step: 1 },
@@ -201,13 +206,13 @@ export const cameraCalculators = [
         name: '최대 fps 계산',
         en: 'Max Frame Rate',
         formula: [
-          '프레임당 용량(byte) = 가로 화소수 × 세로 화소수 × 비트 깊이 / 8',
+          '프레임당 용량(byte) = 화소수 (W) × 화소수 (H) × 비트 깊이 / 8',
           '최대 프레임레이트 = 인터페이스 대역폭 / 프레임당 용량',
           '프레임 주기 = 1 / 최대 프레임레이트',
         ],
         inputs: [
-          { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-          { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+          { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+          { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
           { key: 'bitDepth', label: '비트 깊이', en: 'Bit Depth', unit: 'bit', default: 8, min: 1, step: 1 },
           { key: 'linkMBs', label: '인터페이스 대역폭', en: 'Link Bandwidth', unit: 'MB/s', default: 115, min: 1, step: 1,
             hint: 'GigE 115, USB3 350, 10GigE 1150, CXP-12 1200' },
@@ -398,7 +403,7 @@ export const cameraCalculators = [
       }
       warns.push({
         level: 'info',
-        text: '정사각 픽셀로 찍으려면 이송방향 분해능을 가로 분해능과 같게 맞춰야 합니다.',
+        text: '정사각 픽셀로 찍으려면 이송방향 분해능을 대상 분해능 (W) 와 같게 맞춰야 합니다.',
       });
       return warns;
     },
@@ -414,15 +419,15 @@ export const cameraCalculators = [
     related: ['data-rate', 'sensor-format'],
     formula: [
       '출력 화소수 = ROI 화소수 / 비닝',
-      '예상 프레임레이트 = 전체 읽기 fps × (세로 화소수 / 출력 행수)',
+      '예상 프레임레이트 = 전체 읽기 fps × ( 화소수 (H) / 출력 행수 )',
       '감도 배수 = 비닝²',
       '실효 픽셀 크기 = 센서 픽셀 크기 × 비닝',
     ],
     inputs: [
-      { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-      { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
-      { key: 'roiH', label: 'ROI 세로', en: 'ROI Height', unit: 'px', default: 1024, min: 1, step: 1,
-        hint: '읽어들일 행 수. 전체를 쓰면 세로 화소수와 같게' },
+      { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+      { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+      { key: 'roiH', label: 'ROI (H)', en: 'ROI Height', unit: 'px', default: 1024, min: 1, step: 1,
+        hint: '읽어들일 행 수. 전체를 쓰면 화소수 (H) 와 같게' },
       { key: 'bin', label: '비닝', en: 'Binning', unit: '×', default: 1, min: 1, step: 1,
         hint: '2 면 2×2 를 한 픽셀로 합칩니다' },
       { key: 'baseFps', label: '전체 읽기 fps', en: 'Full-frame fps', unit: 'fps', default: 30, min: 0.01, step: 1 },
@@ -454,7 +459,7 @@ export const cameraCalculators = [
     warn(v, o) {
       const warns = [];
       if (v.roiH > v.hpx) {
-        warns.push({ level: 'warn', text: 'ROI 세로가 센서 세로보다 큽니다. 센서 크기로 잘라 계산했습니다.' });
+        warns.push({ level: 'warn', text: 'ROI (H) 가 화소수 (H) 보다 큽니다. 센서 크기로 잘라 계산했습니다.' });
       }
       if (v.bin > 1) {
         warns.push({
@@ -481,14 +486,14 @@ export const cameraCalculators = [
     formula: [
       '어긋남(µm) = 이송 속도(mm/s) × 리드아웃 시간(µs) / 1000',
       '어긋남(px) = 어긋남(µm) / 대상 분해능',
-      '기울기 각도 = atan(어긋남 px / 세로 화소수)',
+      '기울기 각도 = atan( 어긋남 px / 화소수 (H) )',
     ],
     inputs: [
       { key: 'readoutUs', label: '프레임 리드아웃 시간', en: 'Readout Time', unit: 'µs', default: 10000, min: 1, step: 100,
         hint: '첫 행부터 마지막 행까지 걸리는 시간' },
       { key: 'speed', label: '이송 속도', en: 'Speed', unit: 'mm/s', default: 100, min: 0, step: 1 },
       { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
-      { key: 'rows', label: '세로 화소수', en: 'Rows', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+      { key: 'rows', label: '화소수 (H)', en: 'Rows', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
     ],
     outputs: [
       { key: 'shiftPx', label: '상하 어긋남', en: 'Skew Shift', unit: 'px', digits: 2, primary: true },

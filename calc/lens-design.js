@@ -109,13 +109,13 @@ export const lensDesignCalculators = [
     tags: ['이미지 서클', 'image circle', '비네팅', 'vignetting', '대각', '센서 포맷', '커버'],
     related: ['lens-select', 'aperture'],
     formula: [
-      '센서 대각 = √(센서 가로² + 센서 세로²)',
+      '센서 대각 = √( 센서 크기 (W)² + 센서 크기 (H)² )',
       '여유 = 이미지 서클 지름 − 센서 대각',
       '이미지 서클이 센서 대각보다 커야 모서리까지 덮습니다',
     ],
     inputs: [
-      { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-      { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
+      { key: 'wpx', label: '화소수 (W)', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
+      { key: 'hpx', label: '화소수 (H)', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
       { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
         min: 0.1, step: 0.1 },
       { key: 'circleDia', label: '이미지 서클 지름', en: 'Image Circle', unit: 'mm', default: 35, min: 0.1, step: 0.1,
@@ -125,8 +125,8 @@ export const lensDesignCalculators = [
       { key: 'diag', label: '센서 대각', en: 'Sensor Diagonal', unit: 'mm', digits: 2, primary: true },
       { key: 'margin', label: '여유', en: 'Margin', unit: 'mm', digits: 2, primary: true },
       { key: 'marginPct', label: '여유율', en: 'Margin', unit: '%', digits: 1 },
-      { key: 'sensorW', label: '센서 가로', en: 'Sensor W', unit: 'mm', digits: 2 },
-      { key: 'sensorH', label: '센서 세로', en: 'Sensor H', unit: 'mm', digits: 2 },
+      { key: 'sensorW', label: '센서 크기 (W)', en: 'Sensor (W)', unit: 'mm', digits: 2 },
+      { key: 'sensorH', label: '센서 크기 (H)', en: 'Sensor (H)', unit: 'mm', digits: 2 },
       { key: 'maxDiag', label: '지원 가능 최대 대각', en: 'Max Diagonal', unit: 'mm', digits: 2 },
     ],
     compute(v) {

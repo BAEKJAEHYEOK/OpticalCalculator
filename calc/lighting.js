@@ -292,7 +292,7 @@ export const lightingCalculators = [
     related: ['illuminance', 'inverse-square'],
     formula: [
       '조사 지름 = 발광부 크기 + 2 × 조명 거리 × tan(조명 반각)',
-      '시야 끝 각도 = atan(시야 가로 / 2 / 조명 거리)',
+      '시야 끝 각도 = atan( 시야 (W) / 2 / 조명 거리 )',
       '가장자리 조도비 = cos⁴(시야 끝 각도)',
     ],
     inputs: [
@@ -300,7 +300,7 @@ export const lightingCalculators = [
         hint: '링 조명이면 바깥 지름' },
       { key: 'halfAngle', label: '조명 반각', en: 'Half Angle', unit: '°', default: 30, min: 0.1, max: 89, step: 1 },
       { key: 'distance', label: '조명 거리', en: 'Distance', unit: 'mm', default: 300, min: 1, step: 10 },
-      { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', default: 120, min: 0.01, step: 1 },
+      { key: 'fovW', label: '시야 (W)', en: 'FOV (W)', unit: 'mm', default: 120, min: 0.01, step: 1 },
     ],
     outputs: [
       { key: 'coverage', label: '조사 지름', en: 'Coverage', unit: 'mm', digits: 1, primary: true },
