@@ -201,8 +201,11 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 10px;
 }
-.field { display: block; }
-.field-label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+/* 라벨 줄 수나 설명 유무가 달라도 같은 행의 입력 상자가 나란히 놓이도록,
+   각 칸을 세로 플렉스로 두고 라벨 덩어리가 남는 높이를 흡수하게 한다. */
+.field { display: flex; flex-direction: column; }
+.field-head { flex: 1 1 auto; margin-bottom: 5px; }
+.field-label { display: block; font-size: 12px; line-height: 1.45; color: var(--text-2); }
 .field-unit { color: var(--text-3); }
 /* 국문 라벨 뒤 영문 용어. 눈에 띄되 국문을 밀어내지 않을 만큼만 약하게. */
 .en {
@@ -218,7 +221,7 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .field-opt { color: var(--text-3); font-size: 11px; }
 .field-hint {
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-3);
@@ -263,13 +266,17 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   margin-top: 10px;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 12.5px;
+  line-height: 1.65;
   color: var(--text-2);
   background: var(--surface);
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  padding: 9px 12px;
-  overflow-x: auto;
+  padding: 10px 12px;
 }
+/* 여러 줄 수식은 줄마다 한 단계씩 이어지므로 줄 사이를 띄운다. */
+.formula-line + .formula-line { margin-top: 5px; }
+/* 긴 식이 화면을 밀어내지 않도록 줄바꿈을 허용한다. */
+.formula-line { overflow-wrap: anywhere; }
 
 /* 도해. 색은 color 로 넘긴다 — SVG marker 가 currentColor 를 통해 받아간다. */
 .diagram-box {

@@ -14,7 +14,12 @@ export const geometryCalculators = [
     summary: '초점거리와 센서 크기로 화각을 구하고, 그 거리에서의 시야를 함께 냅니다',
     tags: ['화각', 'AOV', 'FOV', 'angle of view', '시야각', '수평', '수직', '대각'],
     related: ['lens-select', 'perspective-error'],
-    formula: '화각 = 2 · atan(시야 / (2 · 작동거리)),   무한원 기준 = 2 · atan(센서 / 2f)',
+    formula: [
+      '배율 = 초점거리 / (작동거리 − 초점거리)',
+      '시야 = 센서 크기 / 배율',
+      '화각 = 2 × atan( 시야 / 2 / 작동거리 )',
+      '무한원 기준 화각 = 2 × atan( 센서 크기 / 2 / 초점거리 )',
+    ],
     inputs: [
       { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
       { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -76,7 +81,11 @@ export const geometryCalculators = [
     summary: '기준 물체의 실측값과 픽셀수로 축척을 정하고, 측정 픽셀을 실제 치수로 바꿉니다',
     tags: ['캘리브레이션', 'calibration', '축척', 'scale', '픽셀', 'mm', '측정', '환산'],
     related: ['resolution', 'perspective-error'],
-    formula: '축척(mm/px) = 기준 실측(mm) / 기준 픽셀수,   측정값 = 측정 픽셀 × 축척',
+    formula: [
+      '축척(mm/px) = 기준 물체 실측 / 기준 물체 픽셀수',
+      '측정값 = 측정 픽셀수 × 축척',
+      '측정 불확실도 = 2 × 에지 검출 오차 × 축척',
+    ],
     inputs: [
       { key: 'refMm', label: '기준 물체 실측', en: 'Reference Length', unit: 'mm', default: 50, min: 0.001, step: 0.01,
         hint: '캘리브레이션 타깃의 알려진 치수' },
@@ -133,7 +142,11 @@ export const geometryCalculators = [
     summary: '일반 렌즈에서 대상 높이가 달라지면 크기가 얼마나 다르게 찍히는지 구합니다',
     tags: ['원근', 'perspective', '높이', '두께', '측정 오차', '비텔레센트릭', '배율 변화'],
     related: ['telecentric', 'angle-of-view'],
-    formula: '크기 변화율 ≈ 높이차 / 작동거리,   측정 오차 = 측정 길이 × 변화율',
+    formula: [
+      '크기 변화율 = 대상 높이차 / 작동거리',
+      '측정 오차 = 측정 길이 × 크기 변화율',
+      '1 px 허용 높이차 = (대상 분해능 / 측정 길이) × 작동거리',
+    ],
     inputs: [
       { key: 'wd', label: '작동거리', en: 'WD', unit: 'mm', profile: 'workingDistance', min: 1, step: 1 },
       { key: 'heightMm', label: '대상 높이차', en: 'Height Difference', unit: 'mm', default: 5, min: 0, step: 0.1,
@@ -181,7 +194,11 @@ export const geometryCalculators = [
     summary: '텔레센트릭 렌즈의 잔여 각도가 만드는 측정 오차를 구하고 일반 렌즈와 비교합니다',
     tags: ['텔레센트릭', 'telecentric', '텔레센트릭도', '측정', '치수', '정밀'],
     related: ['perspective-error', 'lens-select'],
-    formula: '오차 = 2 × 높이차 × tan(텔레센트릭도)',
+    formula: [
+      '측정 오차 = 2 × 대상 높이차 × tan(텔레센트릭도)',
+      '일반 렌즈 오차 = 측정 길이 × 대상 높이차 / 작동거리',
+      '개선 배수 = 일반 렌즈 오차 / 측정 오차',
+    ],
     inputs: [
       { key: 'telecentricityDeg', label: '텔레센트릭도', en: 'Telecentricity', unit: '°', default: 0.1, min: 0, step: 0.01,
         hint: '렌즈 스펙시트의 Telecentricity. 보통 0.05~0.5°' },
@@ -239,7 +256,12 @@ export const geometryCalculators = [
     summary: '카메라가 기울어져 설치되면 시야 양끝의 거리와 배율이 달라집니다. 그 차이를 구합니다',
     tags: ['경사', 'tilt', '기울기', '키스톤', 'keystone', '사다리꼴', '설치', '정렬'],
     related: ['perspective-error', 'dof'],
-    formula: '양끝 거리차 = 시야 × sin(경사각),   배율차 ≈ 거리차 / 작동거리',
+    formula: [
+      '양끝 거리차 = 시야 가로 × sin(경사각)',
+      '양끝 배율차 = 양끝 거리차 / 작동거리',
+      '키스톤 왜곡(px) = 시야 가로 × 양끝 배율차 / 대상 분해능',
+      '필요 피사계심도 = 양끝 거리차',
+    ],
     inputs: [
       { key: 'tiltDeg', label: '경사각', en: 'Tilt Angle', unit: '°', default: 2, min: 0, max: 89, step: 0.1,
         hint: '광축이 대상면 수직에서 벗어난 각도' },

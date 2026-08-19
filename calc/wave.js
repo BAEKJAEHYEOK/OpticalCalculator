@@ -32,7 +32,11 @@ export const waveCalculators = [
     summary: '매질이 바뀔 때 빛이 얼마나 꺾이고 얼마나 반사되는지 구합니다',
     tags: ['스넬', 'snell', '굴절', 'refraction', '굴절률', '프레넬', 'fresnel', '반사율', '입사각'],
     related: ['critical-angle', 'plane-plate'],
-    formula: 'n₁ sin θ₁ = n₂ sin θ₂,   반사율은 프레넬 식(s·p 평균)',
+    formula: [
+      '입사 매질 굴절률 × sin(입사각) = 투과 매질 굴절률 × sin(굴절각)',
+      '반사율은 프레넬 식의 s 편광·p 편광 평균',
+      '수직 입사 반사율 = ( (굴절률₁ − 굴절률₂) / (굴절률₁ + 굴절률₂) )²',
+    ],
     inputs: [
       { key: 'n1', label: '입사 매질 굴절률', en: 'Index 1', unit: '', default: 1.0, min: 1, step: 0.001, hint: GLASS_HINT },
       { key: 'n2', label: '투과 매질 굴절률', en: 'Index 2', unit: '', default: 1.52, min: 1, step: 0.001 },
@@ -101,7 +105,11 @@ export const waveCalculators = [
     summary: '전반사가 시작되는 각도와, 반사가 사라지는 브루스터각을 구합니다',
     tags: ['임계각', 'critical angle', '전반사', 'TIR', '브루스터', 'brewster', '편광', '도광판'],
     related: ['snell', 'plane-plate'],
-    formula: '임계각 = asin(n₂ / n₁),   브루스터각 = atan(n₂ / n₁)',
+    formula: [
+      '임계각 = asin( 투과 매질 굴절률 / 입사 매질 굴절률 )',
+      '브루스터각 = atan( 투과 매질 굴절률 / 입사 매질 굴절률 )',
+      '임계각은 굴절률이 큰 쪽에서 작은 쪽으로 나갈 때만 존재합니다',
+    ],
     inputs: [
       { key: 'n1', label: '입사 매질 굴절률', en: 'Index 1', unit: '', default: 1.52, min: 1, step: 0.001, hint: GLASS_HINT },
       { key: 'n2', label: '투과 매질 굴절률', en: 'Index 2', unit: '', default: 1.0, min: 1, step: 0.001 },
@@ -151,7 +159,12 @@ export const waveCalculators = [
     summary: '유리를 통해 들여다볼 때 초점이 얼마나 밀리고 상이 얼마나 어긋나는지 구합니다',
     tags: ['평행판', 'plate', '유리', 'glass', '초점 이동', '두께', '측면 변위', '커버 글라스', '윈도우'],
     related: ['snell', 'dof'],
-    formula: '초점 이동 = 두께 × (1 − 1/n),   측면 변위 = 두께 × sin(θ₁ − θ₂) / cos θ₂',
+    formula: [
+      '초점 이동 = 유리 두께 × (1 − 1 / 굴절률)',
+      '내부 굴절각 = asin( sin(입사각) / 굴절률 )',
+      '측면 변위 = 유리 두께 × sin(입사각 − 내부 굴절각) / cos(내부 굴절각)',
+      '유리 내 광로 = 유리 두께 / cos(내부 굴절각)',
+    ],
     inputs: [
       { key: 'thickness', label: '유리 두께', en: 'Thickness', unit: 'mm', default: 3, min: 0, step: 0.1 },
       { key: 'n', label: '굴절률', en: 'Index', unit: '', default: 1.52, min: 1, step: 0.001, hint: GLASS_HINT },
@@ -231,7 +244,12 @@ export const waveCalculators = [
     summary: '격자 주기와 파장으로 각 차수의 회절각과 최대 차수를 구합니다',
     tags: ['회절', 'diffraction', '격자', 'grating', '차수', 'order', '파장', '분광', 'lines/mm'],
     related: ['aperture', 'snell'],
-    formula: '격자 주기 × (sin θ_m − sin θ_i) = m × 파장',
+    formula: [
+      '격자 주기 = 1000 / 격자 밀도(lines/mm)',
+      '격자 주기 × ( sin(회절각) − sin(입사각) ) = 차수 × 파장',
+      '최대 차수 = 격자 주기 × (1 − sin(입사각)) / 파장',
+      '각분산 = 차수 / (격자 주기 × cos(회절각))',
+    ],
     inputs: [
       { key: 'linesPerMm', label: '격자 밀도', en: 'Groove Density', unit: 'lines/mm', default: 600, min: 0.001, step: 10 },
       { key: 'lambdaNm', label: '파장', en: 'Wavelength', unit: 'nm', default: LAMBDA_UM * 1000, min: 1, step: 10 },

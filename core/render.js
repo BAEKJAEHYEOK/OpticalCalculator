@@ -274,20 +274,27 @@ function renderCalculator(calcId, modeId) {
           recompute();
         },
       });
+      // 라벨과 설명을 한 덩어리로 묶어 입력 상자 위에 둔다.
+      // 이 덩어리가 남는 높이를 흡수하므로, 라벨이 두 줄로 접히거나 설명이 붙어도
+      // 같은 행의 입력 상자들이 항상 같은 높이에 정렬된다.
       return el(
         'label',
         { class: `field ${f.profile ? 'from-profile' : ''}` },
         el(
           'span',
-          { class: 'field-label' },
-          f.label,
-          enTag(f.en),
-          f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null,
-          f.optional ? el('span', { class: 'field-opt' }, ' 선택') : null
+          { class: 'field-head' },
+          el(
+            'span',
+            { class: 'field-label' },
+            f.label,
+            enTag(f.en),
+            f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null,
+            f.optional ? el('span', { class: 'field-opt' }, ' 선택') : null
+          ),
+          // 이름만으로 헷갈리는 항목에 한 줄 설명을 붙인다.
+          f.hint ? el('span', { class: 'field-hint' }, f.hint) : null
         ),
-        input,
-        // 이름만으로 헷갈리는 항목에 한 줄 설명을 붙인다.
-        f.hint ? el('span', { class: 'field-hint' }, f.hint) : null
+        input
       );
     })
   );
@@ -392,7 +399,16 @@ function renderCalculator(calcId, modeId) {
         outputBox,
         diagramBox,
         warnBox,
-        mode.formula ? el('div', { class: 'formula' }, mode.formula) : null,
+        // 수식은 여러 줄로 나눠 적는다. 한 줄에 쉼표로 이어 붙이면 읽히지 않는다.
+        mode.formula
+          ? el(
+              'div',
+              { class: 'formula' },
+              (Array.isArray(mode.formula) ? mode.formula : [mode.formula]).map((text) =>
+                el('div', { class: 'formula-line' }, text)
+              )
+            )
+          : null,
         related.length
           ? el(
               'div',
@@ -422,10 +438,14 @@ function renderProfile() {
         { class: 'field' },
         el(
           'span',
-          { class: 'field-label' },
-          f.label,
-          enTag(f.en),
-          f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null
+          { class: 'field-head' },
+          el(
+            'span',
+            { class: 'field-label' },
+            f.label,
+            enTag(f.en),
+            f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null
+          )
         ),
         el('input', {
           type: 'number',

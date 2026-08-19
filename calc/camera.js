@@ -40,7 +40,11 @@ export const cameraCalculators = [
         id: 'size',
         name: '센서 크기 계산',
         en: 'Sensor Size',
-        formula: '센서 크기 = 화소수 × 픽셀 피치,   대각 = √(가로² + 세로²)',
+        formula: [
+          '센서 가로 = 가로 화소수 × 센서 픽셀 크기',
+          '센서 세로 = 세로 화소수 × 센서 픽셀 크기',
+          '대각 = √(센서 가로² + 센서 세로²)',
+        ],
         inputs: [
           { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
           { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -92,7 +96,9 @@ export const cameraCalculators = [
         id: 'pitch',
         name: '픽셀 피치 계산',
         en: 'Pixel Pitch',
-        formula: '픽셀 피치 = 대각(mm) × 1000 / √(가로화소² + 세로화소²)',
+        formula: [
+          '센서 픽셀 크기(µm) = 센서 대각(mm) × 1000 / √(가로 화소수² + 세로 화소수²)',
+        ],
         inputs: [
           { key: 'diag', label: '센서 대각', en: 'Diagonal', unit: 'mm', default: 11, min: 0.1, step: 0.01,
             hint: '2/3" = 11 mm, 1" = 16 mm' },
@@ -140,7 +146,11 @@ export const cameraCalculators = [
         id: 'rate',
         name: '데이터 레이트 계산',
         en: 'Data Rate',
-        formula: '데이터 레이트 = 가로 × 세로 × 비트깊이 × fps / 8',
+        formula: [
+          '프레임당 용량(byte) = 가로 화소수 × 세로 화소수 × 비트 깊이 / 8',
+          '데이터 레이트 = 프레임당 용량 × 프레임레이트',
+          '대역폭 사용률 = 데이터 레이트 / 인터페이스 대역폭',
+        ],
         inputs: [
           { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
           { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -190,7 +200,11 @@ export const cameraCalculators = [
         id: 'fps',
         name: '최대 fps 계산',
         en: 'Max Frame Rate',
-        formula: '최대 fps = 대역폭 / (가로 × 세로 × 비트깊이 / 8)',
+        formula: [
+          '프레임당 용량(byte) = 가로 화소수 × 세로 화소수 × 비트 깊이 / 8',
+          '최대 프레임레이트 = 인터페이스 대역폭 / 프레임당 용량',
+          '프레임 주기 = 1 / 최대 프레임레이트',
+        ],
         inputs: [
           { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
           { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -237,7 +251,10 @@ export const cameraCalculators = [
         id: 'blur',
         name: '블러량 계산',
         en: 'Blur Amount',
-        formula: '이동거리(µm) = 이송속도(mm/s) × 노출시간(µs) / 1000,   블러 = 이동거리 / 분해능',
+        formula: [
+          '이동 거리(µm) = 이송 속도(mm/s) × 노출 시간(µs) / 1000',
+          '블러(px) = 이동 거리 / 대상 분해능',
+        ],
         inputs: [
           { key: 'speed', label: '이송 속도', en: 'Speed', unit: 'mm/s', default: 100, min: 0, step: 1 },
           { key: 'exposureUs', label: '노출 시간', en: 'Exposure', unit: 'µs', default: 500, min: 0.1, step: 10 },
@@ -288,7 +305,9 @@ export const cameraCalculators = [
         id: 'exposure',
         name: '허용 노출 계산',
         en: 'Max Exposure',
-        formula: '최대 노출(µs) = 허용 블러(px) × 분해능(µm/px) × 1000 / 이송속도(mm/s)',
+        formula: [
+          '최대 노출 시간(µs) = 허용 블러(px) × 대상 분해능(µm/px) × 1000 / 이송 속도(mm/s)',
+        ],
         inputs: [
           { key: 'speed', label: '이송 속도', en: 'Speed', unit: 'mm/s', default: 100, min: 0.01, step: 1 },
           { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
@@ -330,7 +349,12 @@ export const cameraCalculators = [
     summary: '라인스캔 카메라의 필요 라인레이트와 그때 쓸 수 있는 최대 노출 시간을 구합니다',
     tags: ['라인스캔', 'line scan', '라인레이트', 'line rate', '인코더', 'TDI', '이송'],
     related: ['motion-blur', 'data-rate'],
-    formula: '라인레이트 = 이송속도(mm/s) × 1000 / 이송방향 분해능(µm),   라인 주기 = 1 / 라인레이트',
+    formula: [
+      '라인레이트(lines/s) = 이송 속도(mm/s) × 1000 / 이송방향 분해능(µm)',
+      '라인 주기 = 1 / 라인레이트',
+      '최대 노출 시간 = 라인 주기',
+      '스캔 폭 = 라인 화소수 × 이송방향 분해능',
+    ],
     inputs: [
       { key: 'speed', label: '이송 속도', en: 'Speed', unit: 'mm/s', default: 200, min: 0.01, step: 1 },
       { key: 'umPerLine', label: '이송방향 분해능', en: 'Resolution', unit: 'µm/line', default: 20, min: 0.01, step: 0.1,
@@ -388,7 +412,12 @@ export const cameraCalculators = [
     summary: '비닝과 관심영역으로 속도를 얼마나 올릴 수 있는지, 분해능은 얼마나 잃는지 구합니다',
     tags: ['비닝', 'binning', 'ROI', '관심영역', '부분 읽기', '감도', 'fps 증가'],
     related: ['data-rate', 'sensor-format'],
-    formula: '출력 화소 = ROI / 비닝,   fps ∝ 원래 행수 / 출력 행수,   감도 ∝ 비닝²',
+    formula: [
+      '출력 화소수 = ROI 화소수 / 비닝',
+      '예상 프레임레이트 = 전체 읽기 fps × (세로 화소수 / 출력 행수)',
+      '감도 배수 = 비닝²',
+      '실효 픽셀 크기 = 센서 픽셀 크기 × 비닝',
+    ],
     inputs: [
       { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
       { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -449,7 +478,11 @@ export const cameraCalculators = [
     summary: '롤링 셔터로 움직이는 대상을 찍을 때 상이 얼마나 기우는지 구합니다',
     tags: ['롤링 셔터', 'rolling shutter', '글로벌 셔터', '왜곡', 'skew', '리드아웃', 'readout'],
     related: ['motion-blur', 'data-rate'],
-    formula: '기울기 이동량 = 이송속도 × 리드아웃 시간,   기울기 각도 = atan(이동량 / 세로 길이)',
+    formula: [
+      '어긋남(µm) = 이송 속도(mm/s) × 리드아웃 시간(µs) / 1000',
+      '어긋남(px) = 어긋남(µm) / 대상 분해능',
+      '기울기 각도 = atan(어긋남 px / 세로 화소수)',
+    ],
     inputs: [
       { key: 'readoutUs', label: '프레임 리드아웃 시간', en: 'Readout Time', unit: 'µs', default: 10000, min: 1, step: 100,
         hint: '첫 행부터 마지막 행까지 걸리는 시간' },
@@ -506,7 +539,11 @@ export const cameraCalculators = [
     summary: '포화 전자수와 읽기 잡음으로 계조 범위와 최대 신호대잡음비를 구합니다',
     tags: ['다이나믹 레인지', 'dynamic range', 'SNR', '잡음', 'noise', '포화', 'full well', '비트 깊이'],
     related: ['exposure-gain', 'sensor-format'],
-    formula: 'DR(dB) = 20 × log₁₀(포화 전자수 / 읽기 잡음),   최대 SNR(dB) = 10 × log₁₀(포화 전자수)',
+    formula: [
+      '다이나믹 레인지(dB) = 20 × log₁₀(포화 전자수 / 읽기 잡음)',
+      '최대 SNR(dB) = 10 × log₁₀(포화 전자수)',
+      '필요 비트 깊이 = log₂(포화 전자수 / 읽기 잡음)',
+    ],
     inputs: [
       { key: 'fullWell', label: '포화 전자수', en: 'Full Well', unit: 'e⁻', default: 10500, min: 1, step: 100,
         hint: '스펙시트의 Full Well Capacity / Saturation Capacity' },
@@ -564,7 +601,12 @@ export const cameraCalculators = [
     summary: '노출을 줄이려면 게인이나 조명을 얼마나 올려야 하고 SNR 은 얼마나 나빠지는지 구합니다',
     tags: ['노출', '게인', 'gain', 'exposure', 'SNR', '조명', '밝기', 'dB', '스톱'],
     related: ['motion-blur', 'dynamic-range'],
-    formula: '보정 배수 = 기준 노출 / 목표 노출,   게인(dB) = 20 × log₁₀(배수),   SNR 저하(dB) = 10 × log₁₀(배수)',
+    formula: [
+      '보정 배수 = 기준 노출 시간 / 목표 노출 시간',
+      '필요 게인(dB) = 20 × log₁₀(보정 배수)',
+      'SNR 저하(dB) = 10 × log₁₀(보정 배수)',
+      '조명으로 보정하면 조도를 보정 배수만큼 올리고 SNR 은 유지됩니다',
+    ],
     inputs: [
       { key: 'baseUs', label: '기준 노출 시간', en: 'Base Exposure', unit: 'µs', default: 1000, min: 0.1, step: 10,
         hint: '지금 쓰고 있는 노출' },

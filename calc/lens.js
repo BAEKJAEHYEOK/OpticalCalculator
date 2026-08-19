@@ -31,7 +31,10 @@ export const lensCalculators = [
         id: 'f',
         name: '초점거리 계산',
         en: 'Focal Length',
-        formula: 'f = WD × S / (FOV + S),   m = S / FOV',
+        formula: [
+          '배율 = 센서 크기 / 시야',
+          '초점거리 = 작동거리 × 센서 크기 / (시야 + 센서 크기)',
+        ],
         inputs: [
           ...SENSOR_INPUTS,
           { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', default: 120, min: 0.01 },
@@ -77,7 +80,10 @@ export const lensCalculators = [
         id: 'fov',
         name: 'FOV 계산',
         en: 'Field of View',
-        formula: 'm = f / (WD − f),   FOV = S / m',
+        formula: [
+          '배율 = 초점거리 / (작동거리 − 초점거리)',
+          '시야 = 센서 크기 / 배율',
+        ],
         inputs: [
           ...SENSOR_INPUTS,
           { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 1 },
@@ -117,7 +123,10 @@ export const lensCalculators = [
         id: 'wd',
         name: 'WD 계산',
         en: 'Working Distance',
-        formula: 'm = S / FOV,   WD = f × (1 + m) / m',
+        formula: [
+          '배율 = 센서 크기 / 시야',
+          '작동거리 = 초점거리 × (1 + 배율) / 배율',
+        ],
         inputs: [
           ...SENSOR_INPUTS,
           { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 1 },
@@ -163,7 +172,10 @@ export const lensCalculators = [
     summary: '배율과 F수로 초점이 맞는 깊이 범위를 구합니다',
     tags: ['DOF', '심도', '착란원', 'depth of field', 'CoC', '초점심도'],
     related: ['lens-select', 'resolution'],
-    formula: 'DOF = 2 · N · c · (1 + m) / m²,   c = 센서 픽셀 크기 × 배수',
+    formula: [
+      '허용 착란원 = 센서 픽셀 크기 × 착란원 배수',
+      '피사계심도 = 2 × F수 × 허용 착란원 × (1 + 배율) / 배율²',
+    ],
     inputs: [
       { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1 },
@@ -223,7 +235,11 @@ export const lensCalculators = [
     summary: 'FOV 와 화소수로 픽셀 하나가 대상에서 몇 µm 인지, 검출 가능한 최소 결함이 얼마인지 구합니다',
     tags: ['분해능', '해상도', 'µm/px', '검출', '나이퀴스트', 'resolution', 'nyquist', 'pixel pitch'],
     related: ['lens-select', 'dof'],
-    formula: '대상 분해능(µm/px) = FOV(mm) × 1000 / 화소수,   검출 한계 = 분해능 × 판정 픽셀수',
+    formula: [
+      '대상 분해능(µm/px) = 시야(mm) × 1000 / 화소수',
+      '검출 한계 = 대상 분해능 × 결함 판정 픽셀수',
+      '나이퀴스트 한계 = 대상 분해능 × 2',
+    ],
     inputs: [
       { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', default: 120, min: 0.01 },
       { key: 'fovH', label: '시야 세로', en: 'FOV H', unit: 'mm', default: 90, min: 0.01 },
@@ -292,7 +308,12 @@ export const lensCalculators = [
     summary: '센서가 앞뒤로 얼마나 벗어나도 초점이 유지되는지 — 마운트·플랜지 조정 여유입니다',
     tags: ['초점심도', 'depth of focus', '플랜지', '마운트', '조립 공차', '센서측'],
     related: ['dof', 'aperture'],
-    formula: '초점심도 = 2 × 유효F수 × 허용착란원,   피사계심도 = 초점심도 / 배율²',
+    formula: [
+      '유효 F수 = F수 × (1 + 배율)',
+      '허용 착란원 = 센서 픽셀 크기 × 착란원 배수',
+      '초점심도 = 2 × 유효 F수 × 허용 착란원',
+      '피사계심도 = 초점심도 / 배율²',
+    ],
     inputs: [
       { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
@@ -354,7 +375,12 @@ export const lensCalculators = [
     summary: '조리개를 조일수록 심도는 깊어지지만 회절로 해상력이 떨어집니다. 그 경계를 찾습니다',
     tags: ['F수', '유효 F수', '회절', '에어리', 'airy', 'diffraction', 'f-number', '조리개', 'NA'],
     related: ['dof', 'resolution'],
-    formula: '유효F수 = F수 × (1 + 배율),   에어리 지름 = 2.44 × 파장 × 유효F수',
+    formula: [
+      '유효 F수 = F수 × (1 + 배율)',
+      '에어리 지름 = 2.44 × 파장 × 유효 F수',
+      '회절 차단 주파수 = 1 / (파장 × 유효 F수)',
+      '상측 개구수 = 1 / (2 × 유효 F수)',
+    ],
     inputs: [
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
         hint: '렌즈에 표시된 조리개값' },

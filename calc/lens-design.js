@@ -18,7 +18,11 @@ export const lensDesignCalculators = [
         id: 'image',
         name: '상거리 계산',
         en: 'Image Distance',
-        formula: '1/f = 1/a + 1/b   →   b = a·f / (a − f),   배율 = b / a',
+        formula: [
+          '1 / 초점거리 = 1 / 물체거리 + 1 / 상거리',
+          '상거리 = 물체거리 × 초점거리 / (물체거리 − 초점거리)',
+          '배율 = 상거리 / 물체거리',
+        ],
         inputs: [
           { key: 'f', label: '초점거리', en: 'Focal Length', unit: 'mm', default: 50, min: 0.1, step: 0.1 },
           { key: 'a', label: '물체거리', en: 'Object Distance', unit: 'mm', default: 300, min: 0.1,
@@ -63,7 +67,10 @@ export const lensDesignCalculators = [
         id: 'focal',
         name: '초점거리 계산',
         en: 'Focal Length',
-        formula: 'f = a·b / (a + b)',
+        formula: [
+          '초점거리 = 물체거리 × 상거리 / (물체거리 + 상거리)',
+          '배율 = 상거리 / 물체거리',
+        ],
         inputs: [
           { key: 'a', label: '물체거리', en: 'Object Distance', unit: 'mm', default: 300, min: 0.1 },
           { key: 'b', label: '상거리', en: 'Image Distance', unit: 'mm', default: 60, min: 0.1 },
@@ -101,7 +108,11 @@ export const lensDesignCalculators = [
     summary: '렌즈가 만드는 상의 원이 센서 모서리까지 덮는지 확인합니다',
     tags: ['이미지 서클', 'image circle', '비네팅', 'vignetting', '대각', '센서 포맷', '커버'],
     related: ['lens-select', 'aperture'],
-    formula: '센서 대각 = √(가로² + 세로²),   이미지 서클 ≥ 센서 대각 이어야 합니다',
+    formula: [
+      '센서 대각 = √(센서 가로² + 센서 세로²)',
+      '여유 = 이미지 서클 지름 − 센서 대각',
+      '이미지 서클이 센서 대각보다 커야 모서리까지 덮습니다',
+    ],
     inputs: [
       { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
       { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
@@ -165,7 +176,13 @@ export const lensDesignCalculators = [
     summary: '접사링을 끼웠을 때 배율이 얼마나 오르고 작동거리와 밝기가 어떻게 변하는지 구합니다',
     tags: ['익스텐션', '접사링', 'extension tube', '접사', '매크로', '배율 증가', '광량'],
     related: ['thin-lens', 'aperture'],
-    formula: '추가 배율 = 튜브 길이 / 초점거리,   물체거리 = f × (1 + 배율) / 배율',
+    formula: [
+      '추가 배율 = 튜브 길이 / 렌즈 초점거리',
+      '총 배율 = 원래 배율 + 추가 배율',
+      '상거리 = 렌즈 초점거리 × (1 + 총 배율)',
+      '물체거리 = 렌즈 초점거리 × (1 + 총 배율) / 총 배율',
+      '광량 손실(스톱) = 2 × log₂(1 + 총 배율)',
+    ],
     inputs: [
       { key: 'f', label: '렌즈 초점거리', en: 'Focal Length', unit: 'mm', profile: 'focalLength', min: 1, step: 0.1 },
       { key: 'tube', label: '튜브 길이', en: 'Tube Length', unit: 'mm', default: 10, min: 0, step: 0.5,
@@ -225,7 +242,10 @@ export const lensDesignCalculators = [
     summary: '렌즈 두 장을 간격을 두고 놓았을 때의 합성 초점거리와 후초점거리를 구합니다',
     tags: ['조합', 'combination', '합성 초점거리', '후초점거리', 'BFD', '클로즈업 렌즈', '굴절력', '디옵터', 'diopter'],
     related: ['thin-lens', 'lens-maker'],
-    formula: '1/f = 1/f₁ + 1/f₂ − d/(f₁·f₂),   BFD = f × (f₁ − d) / f₁',
+    formula: [
+      '1 / 합성 초점거리 = 1 / 첫 렌즈 초점거리 + 1 / 둘째 렌즈 초점거리 − 렌즈 간격 / (첫 렌즈 초점거리 × 둘째 렌즈 초점거리)',
+      '후초점거리 = 합성 초점거리 × (첫 렌즈 초점거리 − 렌즈 간격) / 첫 렌즈 초점거리',
+    ],
     inputs: [
       { key: 'f1', label: '첫 렌즈 초점거리', en: 'Focal Length 1', unit: 'mm', default: 100, step: 0.1,
         hint: '오목렌즈는 음수로 넣습니다' },
@@ -286,7 +306,11 @@ export const lensDesignCalculators = [
     summary: '유리의 굴절률과 양면 곡률반경으로 초점거리를 구합니다',
     tags: ['렌즈메이커', 'lensmaker', '곡률반경', '굴절률', 'curvature', 'index', '두께', '디옵터', 'diopter', 'BK7'],
     related: ['lens-combination', 'thin-lens'],
-    formula: '1/f = (n − 1) × [ 1/R₁ − 1/R₂ + (n − 1)·d / (n·R₁·R₂) ]',
+    formula: [
+      '1 / 초점거리 = (굴절률 − 1) × ( 1 / 앞면 곡률반경 − 1 / 뒷면 곡률반경 + 두께항 )',
+      '두께항 = (굴절률 − 1) × 중심 두께 / (굴절률 × 앞면 곡률반경 × 뒷면 곡률반경)',
+      '중심 두께가 0 이면 두께항이 사라져 박막렌즈 식이 됩니다',
+    ],
     inputs: [
       { key: 'n', label: '굴절률', en: 'Refractive Index', unit: '', default: 1.5168, min: 1.001, step: 0.001,
         hint: 'B270 유리 1.523, BK7 1.5168' },

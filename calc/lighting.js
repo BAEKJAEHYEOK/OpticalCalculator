@@ -20,7 +20,11 @@ export const lightingCalculators = [
         id: 'lux',
         name: '조도 계산',
         en: 'Illuminance',
-        formula: '조도(lux) = 광도(cd) / 거리(m)²,   광속(lm) = 광도(cd) × 입체각(sr)',
+        formula: [
+          '조도(lux) = 광도(cd) / 조명 거리(m)²',
+          '입체각(sr) = 2π × (1 − cos 반각)',
+          '광속(lm) = 광도 × 입체각',
+        ],
         inputs: [
           { key: 'intensity', label: '광도', en: 'Luminous Intensity', unit: 'cd', default: 100, min: 0, step: 1,
             hint: '조명 스펙시트의 candela 값' },
@@ -66,7 +70,10 @@ export const lightingCalculators = [
         id: 'intensity',
         name: '필요 광도 계산',
         en: 'Required Intensity',
-        formula: '광도(cd) = 조도(lux) × 거리(m)²',
+        formula: [
+          '광도(cd) = 목표 조도(lux) × 조명 거리(m)²',
+          '광속(lm) = 광도 × 입체각',
+        ],
         inputs: [
           { key: 'lux', label: '목표 조도', en: 'Target Illuminance', unit: 'lux', default: 2000, min: 0.1, step: 100 },
           { key: 'distance', label: '조명 거리', en: 'Distance', unit: 'mm', default: 500, min: 1, step: 10 },
@@ -104,7 +111,11 @@ export const lightingCalculators = [
     summary: '조명 거리를 바꿨을 때 밝기가 얼마나 변하는지 구합니다',
     tags: ['역제곱', 'inverse square', '거리', '조도 변화', '스톱', '조명 위치'],
     related: ['illuminance', 'exposure-balance'],
-    formula: '새 조도 = 기준 조도 × (기준 거리 / 새 거리)²',
+    formula: [
+      '밝기 배수 = (기준 거리 / 새 거리)²',
+      '새 조도 = 기준 조도 × 밝기 배수',
+      '스톱 변화 = log₂(밝기 배수)',
+    ],
     inputs: [
       { key: 'baseLux', label: '기준 조도', en: 'Base Illuminance', unit: 'lux', default: 2000, min: 0.01, step: 100 },
       { key: 'baseDist', label: '기준 거리', en: 'Base Distance', unit: 'mm', default: 300, min: 0.1, step: 10 },
@@ -145,7 +156,14 @@ export const lightingCalculators = [
     summary: '노출·조리개·조명·게인을 바꿨을 때 최종 밝기가 얼마나 달라지는지 한꺼번에 계산합니다',
     tags: ['노출', '조리개', '게인', '조명', '스톱', 'stop', 'exposure', '밝기 비교', '설정 변경'],
     related: ['inverse-square', 'motion-blur'],
-    formula: '밝기 배수 = (노출비) × (조도비) × (F수비)² × (게인비)',
+    formula: [
+      '노출 기여 = 변경 후 노출 / 변경 전 노출',
+      '조리개 기여 = (변경 전 F수 / 변경 후 F수)²',
+      '조명 기여 = 변경 후 조도 / 변경 전 조도',
+      '게인 기여 = 10 ^ ((변경 후 게인 − 변경 전 게인) / 20)',
+      '최종 밝기 배수 = 네 기여를 모두 곱한 값',
+      '스톱 = log₂(밝기 배수)',
+    ],
     inputs: [
       { key: 'expBefore', label: '노출 — 변경 전', en: 'Exposure Before', unit: 'µs', default: 1000, min: 0.1, step: 10 },
       { key: 'expAfter', label: '노출 — 변경 후', en: 'Exposure After', unit: 'µs', default: 250, min: 0.1, step: 10 },
@@ -210,7 +228,11 @@ export const lightingCalculators = [
     summary: '펄스 폭과 반복 주파수로 듀티를 구하고, 오버드라이브가 안전한 범위인지 확인합니다',
     tags: ['스트로브', 'strobe', '듀티', 'duty', '펄스', '오버드라이브', 'LED', '발열'],
     related: ['illuminance', 'motion-blur'],
-    formula: '듀티 = 펄스 폭 × 반복 주파수,   평균 부하 = 듀티 × 오버드라이브 배수',
+    formula: [
+      '듀티 = 펄스 폭(s) × 반복 주파수(Hz)',
+      '평균 부하 = 듀티 × 오버드라이브 배수',
+      '허용 오버드라이브 = 1 / 듀티',
+    ],
     inputs: [
       { key: 'pulseUs', label: '펄스 폭', en: 'Pulse Width', unit: 'µs', default: 200, min: 0.1, step: 10,
         hint: '보통 노출 시간과 같거나 조금 깁니다' },
@@ -268,7 +290,11 @@ export const lightingCalculators = [
     summary: '조명이 시야를 덮는지, 가장자리가 얼마나 어두워지는지 구합니다',
     tags: ['조사', '균일도', 'coverage', 'uniformity', '조명 크기', 'cos4', '가장자리', '반각'],
     related: ['illuminance', 'inverse-square'],
-    formula: '조사 지름 = 발광부 + 2 × 거리 × tan(반각),   가장자리 조도비 = cos⁴(시야각)',
+    formula: [
+      '조사 지름 = 발광부 크기 + 2 × 조명 거리 × tan(조명 반각)',
+      '시야 끝 각도 = atan(시야 가로 / 2 / 조명 거리)',
+      '가장자리 조도비 = cos⁴(시야 끝 각도)',
+    ],
     inputs: [
       { key: 'emitterMm', label: '발광부 크기', en: 'Emitter Size', unit: 'mm', default: 50, min: 0, step: 1,
         hint: '링 조명이면 바깥 지름' },
