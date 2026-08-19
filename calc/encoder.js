@@ -9,14 +9,14 @@ export const encoderCalculators = [
     category: 'encoder',
     name: '엔코더 분해능 · 스케일러',
     en: 'Encoder Resolution',
-    summary: '엔코더 한 펄스가 이송 몇 µm 인지 구하고, 이미지 분해능과의 비를 냅니다',
+    summary: '엔코더 한 펄스가 이송 몇 µm 인지 구합니다. 손에 쥔 값에 맞는 탭을 고르세요',
     tags: ['엔코더', 'encoder', '분해능', '스케일러', 'scaler', '펄스', 'PPR', '체배', '롤러', '리니어'],
     related: ['trigger-divider', 'line-rate'],
     modes: [
       {
         id: 'measured',
-        name: '실측 방식',
-        en: 'Measured',
+        name: '이동거리 · 펄스 수',
+        en: 'Travel & Pulses',
         formula: [
           '엔코더 분해능(µm) = 이동거리(mm) / 펄스 수 × 1000',
           '스케일러 = 엔코더 분해능 / 이미지 분해능',
@@ -66,8 +66,8 @@ export const encoderCalculators = [
       },
       {
         id: 'position',
-        name: '두 지점 측정',
-        en: 'Two-Point',
+        name: '이동 전후 위치값',
+        en: 'Before & After',
         formula: [
           '이동량 = 이동 후 좌표 − 이동 전 좌표',
           '펄스 변화량 = 이동 후 펄스 위치 값 − 이동 전 펄스 위치 값',
@@ -143,8 +143,8 @@ export const encoderCalculators = [
       },
       {
         id: 'rotary',
-        name: '로터리 엔코더',
-        en: 'Rotary Encoder',
+        name: '롤러 · 엔코더 사양',
+        en: 'Roller & Encoder',
         formula: [
           '엔코더 분해능(µm) = 롤러 지름(µm) × π / (엔코더 PPR × 체배)',
           '스케일러 = 엔코더 분해능 / 이미지 분해능',
@@ -190,8 +190,8 @@ export const encoderCalculators = [
       },
       {
         id: 'required',
-        name: '필요 엔코더 사양',
-        en: 'Required Encoder',
+        name: '목표 분해능 역산',
+        en: 'From Target',
         formula: [
           '필요 총 펄스 = 롤러 지름(µm) × π / 목표 엔코더 분해능(µm)',
           '필요 PPR = 필요 총 펄스 / 체배',

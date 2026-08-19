@@ -218,6 +218,11 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .metric.primary .metric-label .en { color: var(--accent); opacity: 0.75; }
 .tab .en { font-size: 0.8em; }
 .tab.on .en { color: var(--accent); opacity: 0.8; }
+/* 좁은 화면에서는 탭마다 한 줄씩 차지해 본문이 밀린다. 탭 이름은 용어가 아니라
+   "무엇을 입력하는지" 라 국문만으로 충분하므로 영문 병기를 접는다. */
+@media (max-width: 559px) {
+  .tab .en { display: none; }
+}
 .field-opt { color: var(--text-3); font-size: 11px; }
 .field-hint {
   display: block;
