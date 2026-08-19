@@ -174,6 +174,81 @@ check('박막 근사와 동일', olm.thicknessEffect, 0, 1e-12);
 const opl = modeOf('lens-maker').compute({ n: 1.5, r1: 50, r2: 0, thickness: 0 });
 check('평볼록 초점거리', opl.f, 50 / 0.5, 1e-9);
 
+head('[센서 규격]  5120×5120, 4.5 µm');
+const osf = modeOf('sensor-format', 'size').compute({ wpx: 5120, hpx: 5120, pixelUm: 4.5 });
+check('센서 가로', osf.w, 23.04, 1e-9);
+check('대각', osf.diag, Math.hypot(23.04, 23.04), 1e-9);
+check('화소수 MP', osf.megapixel, 26.2144, 1e-6);
+// 크기 모드로 구한 대각을 피치 모드에 넣으면 원래 피치가 나와야 한다.
+check('픽셀 피치 복원',
+  modeOf('sensor-format', 'pitch').compute({ diag: osf.diag, wpx: 5120, hpx: 5120 }).pixelUm, 4.5, 1e-9);
+
+head('[데이터 레이트]  5120×5120, 8bit, 30 fps, GigE 115 MB/s');
+const vdr = { wpx: 5120, hpx: 5120, bitDepth: 8, fps: 30, linkMBs: 115 };
+const odr = modeOf('data-rate', 'rate').compute(vdr);
+check('프레임당 MB', odr.frameMB, (5120 * 5120) / 1e6, 1e-9);
+check('데이터 레이트 MB/s', odr.dataRate, ((5120 * 5120) / 1e6) * 30, 1e-6);
+check('사용률 %', odr.usage, (odr.dataRate / 115) * 100, 1e-6);
+// 링크 상한은 최대 fps 모드와 같은 값이어야 한다.
+check('최대 fps 일치', odr.maxFps, modeOf('data-rate', 'fps').compute(vdr).maxFps, 1e-9);
+check('12bit 이면 1.5배', modeOf('data-rate', 'rate').compute({ ...vdr, bitDepth: 12 }).dataRate, odr.dataRate * 1.5, 1e-6);
+modeOf('data-rate', 'rate').warn(vdr, odr).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+
+head('[모션 블러]  100 mm/s, 노출 500 µs, 분해능 23.44 µm/px');
+const vmb = { speed: 100, exposureUs: 500, umPerPx: 23.44, allowPx: 1 };
+const omb = modeOf('motion-blur', 'blur').compute(vmb);
+check('이동 거리 µm', omb.blurUm, 50, 1e-9);
+check('블러 px', omb.blurPx, 50 / 23.44, 1e-9);
+// 허용 노출로 다시 찍으면 블러가 정확히 허용치가 되어야 한다.
+const omb2 = modeOf('motion-blur', 'blur').compute({ ...vmb, exposureUs: omb.maxExposureUs });
+check('허용 노출에서 블러 = 허용치', omb2.blurPx, 1, 1e-9);
+check('노출 모드와 일치', omb.maxExposureUs, modeOf('motion-blur', 'exposure').compute(vmb).maxExposureUs, 1e-9);
+
+head('[라인스캔]  200 mm/s, 20 µm/line');
+const olr = modeOf('line-rate').compute({ speed: 200, umPerLine: 20, widthPx: 8192, bitDepth: 8 });
+check('라인레이트 lines/s', olr.lineRate, 10000, 1e-9);
+check('라인 주기 µs', olr.linePeriodUs, 100, 1e-9);
+check('스캔 폭 mm', olr.scanWidth, (8192 * 20) / 1000, 1e-9);
+check('데이터 레이트 MB/s', olr.dataRate, (8192 * 10000) / 1e6, 1e-9);
+
+head('[비닝 · ROI]  5120 세로 중 1024 행만, 비닝 2');
+const obr = modeOf('binning-roi').compute({ wpx: 5120, hpx: 5120, roiH: 1024, bin: 2, baseFps: 30, pixelUm: 4.5 });
+check('출력 가로', obr.outW, 2560, 1e-9);
+check('출력 세로', obr.outH, 512, 1e-9);
+check('속도 배수', obr.speedUp, 5120 / 512, 1e-9);
+check('감도 배수', obr.sensitivity, 4, 1e-12);
+check('실효 픽셀 크기', obr.effectivePitch, 9, 1e-12);
+// 전체 읽기 + 비닝 없음이면 원래 fps 그대로여야 한다.
+check('기본 조건에서 fps 유지',
+  modeOf('binning-roi').compute({ wpx: 5120, hpx: 5120, roiH: 5120, bin: 1, baseFps: 30, pixelUm: 4.5 }).newFps, 30, 1e-9);
+
+head('[롤링 셔터]  리드아웃 10 ms, 100 mm/s');
+const ors = modeOf('rolling-shutter').compute({ readoutUs: 10000, speed: 100, umPerPx: 23.44, rows: 5120 });
+check('어긋남 µm', ors.shiftUm, 1000, 1e-9);
+check('어긋남 px', ors.shiftPx, 1000 / 23.44, 1e-9);
+check('행당 시간 µs', ors.lineTimeUs, 10000 / 5120, 1e-12);
+check('기울기 °', ors.skewDeg, (Math.atan(1000 / 23.44 / 5120) * 180) / Math.PI, 1e-9);
+
+head('[다이나믹 레인지]  포화 10500 e⁻, 읽기 잡음 2.4 e⁻');
+const odyn = modeOf('dynamic-range').compute({ fullWell: 10500, readNoise: 2.4, bitDepth: 12 });
+check('DR dB', odyn.drDb, 20 * Math.log10(10500 / 2.4), 1e-9);
+check('최대 SNR dB', odyn.maxSnrDb, 10 * Math.log10(10500), 1e-9);
+check('필요 비트', odyn.neededBits, Math.log2(10500 / 2.4), 1e-9);
+
+head('[노출 · 게인]  1000 µs → 250 µs 면 4배 보정');
+const oeg = modeOf('exposure-gain').compute({ baseUs: 1000, targetUs: 250 });
+check('보정 배수', oeg.factor, 4, 1e-12);
+check('게인 dB', oeg.gainDb, 12.0412, 1e-4);
+check('노출 단계', oeg.stops, 2, 1e-12);
+check('SNR 저하 dB', oeg.snrLossDb, 6.0206, 1e-4);
+check('SNR 비율', oeg.snrRatio, 0.5, 1e-12);
+
+head('[초점심도 도해]  도해가 필요한 값을 모두 받아야 한다');
+const ofdv = modeOf('focus-depth');
+const ofdOut = ofdv.compute({ m: 0.192, fNumber: 5.6, pixelUm: 4.5, cocMult: 2 });
+line(ofdv.diagram ? 'pass' : 'fail', `${ofdv.diagram ? 'PASS' : 'FAIL'}  초점심도에 도해가 붙어 있음`);
+if (!ofdv.diagram) failed++;
+
 head('[레지스트리]  모든 계산기가 기본값만으로 계산·도해까지 통과해야 한다');
 let broken = 0;
 for (const calc of ALL) {

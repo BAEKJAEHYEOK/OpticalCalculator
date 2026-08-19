@@ -4,6 +4,7 @@
 
 import { lensCalculators } from '../calc/lens.js';
 import { lensDesignCalculators } from '../calc/lens-design.js';
+import { cameraCalculators } from '../calc/camera.js';
 
 export const CATEGORIES = [
   { id: 'lens', name: '렌즈', en: 'Lens', icon: '◎', desc: 'Lens Selection · DOF · F-number · Diffraction' },
@@ -28,7 +29,7 @@ function normalize(def) {
   return { ...rest, modes: [mode] };
 }
 
-const RAW = [...lensCalculators, ...lensDesignCalculators];
+const RAW = [...lensCalculators, ...lensDesignCalculators, ...cameraCalculators];
 
 export const CALCULATORS = RAW.map(normalize);
 

@@ -251,6 +251,144 @@ export function depthRange({ dof, nearHalf, farHalf, unit = 'mm' }) {
   return frame('피사계심도 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
 }
 
+/* ---------- 초점심도 (센서측) ---------- */
+
+// 렌즈에서 모인 빛은 초점에서 한 점이 되었다가 다시 퍼진다.
+// 센서를 초점에서 앞뒤로 옮기면 점이 원으로 번지는데, 그 원이 허용 착란원에
+// 닿는 지점까지가 초점심도다. 원뿔로 그리면 이 관계가 그대로 보인다.
+export function focusDepthView({ focusDepth, halfDepth, coc, effectiveN }) {
+  const VB_W = 360;
+  const VB_H = 210;
+  const axisY = 88;
+  const lensX = 40;
+  const focusX = 225;
+  const half = 34;
+
+  const coneHalf = 42;
+  const slope = coneHalf / (focusX - lensX - 6);
+  const spotHalf = half * slope;
+  const tailX = 330;
+  const tailHalf = (tailX - focusX) * slope;
+
+  return frame(
+    '초점심도 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('line', { x1: lensX, y1: axisY, x2: tailX, y2: axisY, class: 'd-axis' }),
+
+    // 초점이 맞은 것으로 보는 구간
+    s('rect', { x: focusX - half, y: axisY - 46, width: half * 2, height: 92, class: 'd-band' }),
+
+    // 수렴했다가 다시 퍼지는 광선
+    s('polyline', {
+      points: `${lensX + 6},${axisY - coneHalf} ${focusX},${axisY} ${tailX},${axisY + tailHalf}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
+    s('polyline', {
+      points: `${lensX + 6},${axisY + coneHalf} ${focusX},${axisY} ${tailX},${axisY - tailHalf}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
+
+    s('ellipse', { cx: lensX, cy: axisY, rx: 6, ry: coneHalf, class: 'd-lens' }),
+    label(lensX, axisY - coneHalf - 10, '렌즈', 'd-label-sm'),
+
+    // 구간 양끝에서 빛다발의 지름이 곧 허용 착란원이다.
+    s('line', { x1: focusX - half, y1: axisY - spotHalf, x2: focusX - half, y2: axisY + spotHalf, class: 'd-coc' }),
+    s('line', { x1: focusX + half, y1: axisY - spotHalf, x2: focusX + half, y2: axisY + spotHalf, class: 'd-coc' }),
+
+    // 초점면에 놓인 센서
+    s('rect', { x: focusX - 4, y: axisY - 30, width: 8, height: 60, class: 'd-sensor' }),
+    label(focusX, axisY - 52, '센서', 'd-label-sm'),
+
+    dimH(focusX - half, focusX + half, axisY + 62, `초점심도 Depth of Focus  ${format(focusDepth, 1)} µm`, {
+      accent: true,
+      below: true,
+    }),
+
+    label(focusX + half + 46, axisY + spotHalf + 14, `허용 착란원 ${format(coc, 2)} µm`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 24, `센서를 앞뒤로 ±${format(halfDepth, 1)} µm 까지 옮겨도 흐림이 허용 착란원 안에 있습니다`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 8, `유효 F수 ${format(effectiveN, 2)}  ·  개략도 — 축척 아님`, 'd-label-sm')
+  );
+}
+
+/* ---------- 모션 블러 ---------- */
+
+// 노출 중 대상이 움직인 거리가 픽셀 몇 개에 걸치는지 보여준다.
+export function motionBlurView({ blurPx, blurUm, umPerPx, exposureUs }) {
+  const VB_W = 340;
+  const VB_H = 180;
+  const cell = 30;
+  const cols = 8;
+  const x0 = (VB_W - cols * cell) / 2;
+  const y0 = 46;
+
+  const smear = Math.max(0.15, Math.min(cols - 1, blurPx));
+  const kids = [];
+
+  for (let c = 0; c < cols; c++) {
+    kids.push(s('rect', { x: x0 + c * cell, y: y0, width: cell, height: cell, class: 'd-px' }));
+  }
+
+  // 정지 상태의 점과, 노출 동안 번진 자국.
+  kids.push(
+    s('circle', { cx: x0 + cell * 0.5, cy: y0 + cell / 2, r: cell * 0.3, class: 'd-spot' }),
+    s('rect', {
+      x: x0 + cell * 0.5 - cell * 0.3,
+      y: y0 + cell / 2 - cell * 0.3,
+      width: cell * (0.6 + smear),
+      height: cell * 0.6,
+      rx: cell * 0.3,
+      class: 'd-smear',
+    }),
+    dimH(x0 + cell * 0.5, x0 + cell * (0.5 + smear), y0 + cell + 26,
+      `이동 ${format(blurUm, 1)} µm = ${format(blurPx, 2)} px`, { accent: true, below: true }),
+    label(x0 + cell * 0.5, y0 - 12, '정지 시', 'd-label-sm'),
+    label(VB_W / 2, VB_H - 22, `1 px = ${format(umPerPx, 2)} µm  ·  노출 ${format(exposureUs, 0)} µs`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 7, '노출 동안 대상이 움직인 만큼 상이 번집니다', 'd-label-sm')
+  );
+
+  return frame('모션 블러 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 롤링 셔터 왜곡 ---------- */
+
+// 위에서 아래로 순차 노출되므로, 대상이 움직이면 아래로 갈수록 밀려 기울어진다.
+export function rollingShutterView({ shiftPx, skewDeg, readoutUs, rows }) {
+  const VB_W = 340;
+  // 도형 아래 캡션 한 줄 + 설명 세 줄이 들어가므로 아래 여백을 넉넉히 잡는다.
+  const VB_H = 222;
+  const boxW = 110;
+  const boxH = 92;
+  const cx = VB_W / 2;
+  const y0 = 42;
+
+  // 기울기를 화면에서 보이게 하되 과하지 않게 제한한다.
+  const lean = Math.max(-56, Math.min(56, (shiftPx / Math.max(rows, 1)) * boxH * 6));
+
+  return frame(
+    '롤링 셔터 왜곡 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('rect', { x: cx - boxW - 24, y: y0, width: boxW, height: boxH, class: 'd-target' }),
+    label(cx - boxW / 2 - 24, y0 + boxH + 18, '실제 형상', 'd-label-sm'),
+
+    s('polygon', {
+      points: [
+        `${cx + 24},${y0}`,
+        `${cx + 24 + boxW},${y0}`,
+        `${cx + 24 + boxW + lean},${y0 + boxH}`,
+        `${cx + 24 + lean},${y0 + boxH}`,
+      ].join(' '),
+      class: 'd-fov-bad',
+    }),
+    label(cx + boxW / 2 + 24, y0 + boxH + 18, '촬영 결과', 'd-label-sm'),
+
+    label(VB_W / 2, VB_H - 46, `첫 행과 마지막 행 사이 ${format(readoutUs, 0)} µs 차이`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 28, `아래쪽이 ${format(shiftPx, 2)} px 밀립니다`, 'd-label'),
+    label(VB_W / 2, VB_H - 8, `기울기 ${format(skewDeg, 2)}°  ·  개략도 — 기울기 과장`, 'd-label-sm')
+  );
+}
+
 /* ---------- 이미지 서클과 센서 ---------- */
 
 // 렌즈가 만드는 상의 원과 센서 사각형을 겹쳐 그린다.

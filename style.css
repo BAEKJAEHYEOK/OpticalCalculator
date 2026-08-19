@@ -305,6 +305,9 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .d-focus { stroke: var(--accent); stroke-width: 2; }
 .d-limit { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
 
+.d-coc { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.d-spot { fill: var(--text-2); }
+.d-smear { fill: var(--accent); opacity: 0.45; }
 .d-px { fill: none; stroke: var(--border-strong); stroke-width: 1; }
 .d-px-on { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1; }
 

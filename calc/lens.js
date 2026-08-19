@@ -1,7 +1,7 @@
 // 렌즈 대분류 - 현장 계산기.
 // 장비를 고르고 조건을 확인할 때 쓰는 것들. 설계용 공식은 lens-design.js 에 있다.
 
-import { depthRange, pixelGrid, fovRect } from '../core/diagram.js';
+import { depthRange, pixelGrid, fovRect, focusDepthView } from '../core/diagram.js';
 import { LAMBDA_UM } from '../core/units.js';
 import {
   sensorSize,
@@ -319,6 +319,16 @@ export const lensCalculators = [
         coc,
         dof,
       };
+    },
+    diagram(v, o) {
+      return [
+        focusDepthView({
+          focusDepth: o.focusDepth,
+          halfDepth: o.halfDepth,
+          coc: o.coc,
+          effectiveN: o.effectiveN,
+        }),
+      ];
     },
     warn(v, o) {
       const warns = [];
