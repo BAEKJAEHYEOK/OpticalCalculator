@@ -87,6 +87,64 @@ verify.html     공식 검증
 - 직역하지 않습니다. 시야 → `Field of View` 가 아니라 실제로 쓰는 `FOV`
 - 검색은 `en` 값까지 훑으므로 `Nyquist`, `CoC` 같은 영문으로도 계산기가 찾힙니다
 
+## 안드로이드 APK
+
+같은 소스를 Capacitor 로 감싸 APK 를 만듭니다. 웹 파일이 APK 안에 통째로 들어가므로
+설치 후에는 인터넷도, GitHub Pages 도 필요 없습니다.
+
+```bash
+npm run apk
+```
+
+`dist/OpticalCalculator-<버전>-debug.apk` 가 나옵니다. 폰에 복사해 설치하면 됩니다
+(설정에서 "출처를 알 수 없는 앱" 허용 필요).
+
+### 처음 한 번만
+
+```bash
+npm install
+```
+
+```bash
+npm run android:init
+```
+
+`android:init` 이 안드로이드 프로젝트를 만들고, 이 환경에 필요한 설정을 심고, 런처
+아이콘까지 생성합니다. `android/` 는 git 에 올리지 않는 재생성 가능한 산출물이라,
+지우고 이 명령을 다시 돌리면 그대로 복구됩니다.
+
+### 필요한 도구
+
+| 도구 | 비고 |
+| --- | --- |
+| Node.js LTS | `winget install OpenJS.NodeJS.LTS` |
+| Android Studio | `winget install Google.AndroidStudio` — 설치 후 **첫 실행 마법사를 Standard 로 완료**해야 SDK 가 받아집니다 |
+
+**JDK 를 따로 설치할 필요는 없습니다.** Capacitor 7 은 Java 21 이상을 요구하는데,
+Android Studio 가 번들한 JBR 을 빌드 스크립트가 자동으로 찾아 씁니다. 시스템에 JDK 17 만
+있으면 `invalid source release: 21` 로 실패합니다.
+
+환경변수(`JAVA_HOME`, `ANDROID_HOME`)는 설정하지 않아도 됩니다. 스크립트가 표준 설치
+위치에서 직접 찾습니다. 비표준 위치에 깔았다면 `CAPACITOR_JAVA_HOME` 으로 지정하세요.
+
+### 이 환경 특유의 문제 두 가지
+
+저장소가 `기타 소스` 아래에 있어 **경로에 한글이 들어갑니다.** AGP 는 이걸 감지하면
+빌드를 거부하므로 `android.overridePathCheck=true` 를 넣어 우회합니다. 같은 이유로
+`local.properties` 에 SDK 경로를 쓰지 않습니다 — properties 파일 인코딩에서 한글이
+깨집니다. 대신 환경변수로 넘깁니다. 두 가지 모두 `scripts/patch-android.mjs` 가
+`cap sync` 마다 다시 심습니다.
+
+Gradle 호출은 `package.json` 에서 `cd android && gradlew.bat` 로 엮지 않고
+`scripts/build-apk.mjs` 를 거칩니다. cmd 와 sh 에서 실행 경로 해석이 달라지고,
+Node 20 부터는 `.bat` 을 셸 없이 spawn 하면 거부되기 때문입니다.
+
+### 배포용 서명
+
+`npm run apk` 가 만드는 것은 **디버그 서명 APK** 입니다. 사내 배포나 테스트에는
+그대로 써도 되지만, Play 스토어에 올리거나 정식 배포하려면 릴리스 키로 서명해야
+합니다. 그때 `npm run apk:release` 와 키스토어 설정을 붙이면 됩니다.
+
 ## 배포
 
 정적 파일만 있으므로 아무 정적 호스팅에나 올리면 됩니다.

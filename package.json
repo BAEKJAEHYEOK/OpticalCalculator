@@ -5,10 +5,11 @@
   "description": "머신비전 광학 계산기 — 웹(PWA)과 안드로이드 APK 를 같은 소스로 만든다",
   "scripts": {
     "build": "node scripts/build-www.mjs",
-    "sync": "npm run build && npx cap sync android",
-    "android:init": "npx cap add android",
-    "apk": "npm run sync && cd android && gradlew.bat assembleDebug",
-    "apk:release": "npm run sync && cd android && gradlew.bat assembleRelease",
+    "sync": "npm run build && npx cap sync android && node scripts/patch-android.mjs",
+    "android:init": "npx cap add android && node scripts/patch-android.mjs && python scripts/android_icons.py",
+    "android:icons": "python scripts/android_icons.py",
+    "apk": "npm run sync && node scripts/build-apk.mjs debug && node scripts/collect-apk.mjs",
+    "apk:release": "npm run sync && node scripts/build-apk.mjs release && node scripts/collect-apk.mjs",
     "open:android": "npx cap open android"
   },
   "devDependencies": {
