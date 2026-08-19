@@ -278,6 +278,75 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 /* 긴 식이 화면을 밀어내지 않도록 줄바꿈을 허용한다. */
 .formula-line { overflow-wrap: anywhere; }
 
+/* 뜻을 볼 수 있는 용어. 점선 밑줄이 곧 "누를 수 있다" 는 표시다. */
+.term {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted var(--border-strong);
+  text-underline-offset: 3px;
+}
+.term:hover, .term:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
+
+/* 용어 뜻 팝업 */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 520px;
+}
+.sheet-term { font-size: 17px; font-weight: 600; }
+.sheet-short { margin: 8px 0 16px; font-size: 14px; color: var(--text-2); line-height: 1.65; }
+.sheet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 560px) {
+  .sheet-backdrop { align-items: center; }
+  .sheet { border-radius: 16px; border: 1px solid var(--border); padding-bottom: 20px; }
+}
+
+/* 용어 목록 · 상세 */
+.glossary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.glossary-icon { font-size: 20px; color: var(--accent); }
+.glossary-text { display: block; }
+.glossary-name { display: block; font-size: 15px; font-weight: 600; }
+.glossary-desc { display: block; font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+.term-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.term-card-head { display: flex; align-items: baseline; flex-wrap: wrap; }
+.term-card-name { font-size: 15px; font-weight: 600; }
+.term-card-short { font-size: 12px; color: var(--text-2); margin-top: 3px; line-height: 1.6; }
+.term-card-cat { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+
+.term-short { margin: 0 0 12px; font-size: 15px; font-weight: 600; line-height: 1.6; }
+.term-body { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.75; }
+
 /* 종료 확인 대화상자 */
 .dialog-backdrop {
   position: fixed;

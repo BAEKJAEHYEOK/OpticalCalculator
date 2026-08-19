@@ -5,6 +5,7 @@
 // 계산기 → 대분류 → 홈 순으로 올라가고 홈에서만 종료를 묻는다.
 
 import { getCalculator } from './registry.js';
+import { closeTermSheet } from './render.js';
 
 // 지금 화면의 상위 화면. 홈이면 null 을 돌려준다.
 export function parentHash(hash) {
@@ -13,6 +14,7 @@ export function parentHash(hash) {
     const calc = getCalculator(a);
     return calc ? `#/c/${calc.category}` : '#/';
   }
+  if (seg === 'terms') return a ? '#/terms' : '#/';
   if (seg === 'c' || seg === 'profile') return '#/';
   return null;
 }
@@ -80,6 +82,7 @@ export function start() {
 
   capApp.addListener('backButton', () => {
     if (closeDialog()) return;
+    if (closeTermSheet()) return;
 
     const parent = parentHash(location.hash);
     if (parent !== null) {

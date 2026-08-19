@@ -2,6 +2,7 @@
 // 이 파일 한 벌이 모든 계산기를 그린다.
 
 import { CATEGORIES, CALCULATORS, getCalculator, byCategory, searchCalculators } from './registry.js';
+import { TERMS, getTerm, annotate, searchTerms } from './glossary.js';
 import { format } from './units.js';
 import {
   PROFILE_FIELDS,
@@ -19,6 +20,10 @@ const app = () => document.getElementById('app');
 
 // 국문 라벨 뒤에 붙는 통용 영문 용어. 렌즈 스펙시트가 영문이라 대조하며 쓰려면 둘 다 필요하다.
 const enTag = (text) => (text ? el('span', { class: 'en' }, text) : null);
+
+// 아는 용어에 점선 밑줄을 그어 누를 수 있게 만든다. 없으면 원래 글자 그대로 둔다.
+// 계산 중에 모르는 용어를 만나면 그 자리에서 뜻을 볼 수 있어야 한다.
+const withTerms = (text) => annotate(text, showTermSheet) || text;
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -129,27 +134,156 @@ function calcCard(calc) {
   );
 }
 
+/* ---------- 용어 팝업 ---------- */
+
+let termSheet = null;
+
+export function closeTermSheet() {
+  if (!termSheet) return false;
+  termSheet.remove();
+  termSheet = null;
+  return true;
+}
+
+// 용어를 누르면 뜻을 바로 띄운다. 화면을 떠나지 않으므로 계산하던 값이 그대로 남는다.
+function showTermSheet(entry) {
+  closeTermSheet();
+
+  const calc = entry.calc ? getCalculator(entry.calc) : null;
+  const actions = el(
+    'div',
+    { class: 'sheet-actions' },
+    el('a', { class: 'ghost-btn', href: `#/terms/${entry.id}`, onclick: () => closeTermSheet() }, '용어 설명 열기'),
+    calc
+      ? el('a', { class: 'ghost-btn', href: `#/calc/${calc.id}`, onclick: () => closeTermSheet() }, `${calc.name} 계산기`)
+      : null,
+    el('button', { class: 'ghost-btn', onclick: () => closeTermSheet() }, '닫기')
+  );
+
+  const sheet = el(
+    'div',
+    { class: 'sheet' },
+    el('div', { class: 'sheet-term' }, entry.term, enTag(entry.en)),
+    el('p', { class: 'sheet-short' }, entry.short),
+    actions
+  );
+
+  const backdrop = el('div', {
+    class: 'sheet-backdrop',
+    onclick: (e) => {
+      if (e.target === backdrop) closeTermSheet();
+    },
+  });
+  backdrop.append(sheet);
+  document.body.append(backdrop);
+  termSheet = backdrop;
+}
+
+/* ---------- 용어 설명 ---------- */
+
+function termCard(entry) {
+  const cat = CATEGORIES.find((c) => c.id === entry.category);
+  return el(
+    'a',
+    { class: 'term-card', href: `#/terms/${entry.id}` },
+    el('div', { class: 'term-card-head' }, el('span', { class: 'term-card-name' }, entry.term), enTag(entry.en)),
+    el('div', { class: 'term-card-short' }, entry.short),
+    cat ? el('div', { class: 'term-card-cat' }, cat.name) : null
+  );
+}
+
+function renderTerms() {
+  const root = el('div', { class: 'view' });
+  root.append(
+    el('a', { class: 'back', href: '#/' }, '← 전체'),
+    el('h1', { class: 'page-title' }, '용어 설명', enTag('Glossary')),
+    el('p', { class: 'page-desc' }, `광학·카메라·엔코더 용어 ${TERMS.length}개. 계산기 화면에서 점선 밑줄이 있는 용어를 누르면 바로 열립니다.`)
+  );
+
+  const list = el('div', { class: 'card-grid' }, TERMS.map(termCard));
+  const search = el('input', {
+    type: 'search',
+    class: 'search',
+    placeholder: '용어 검색 — "DOF", "분주비", "회절"',
+    oninput: (e) => {
+      const q = e.target.value.trim();
+      const hits = q ? searchTerms(q) : TERMS;
+      list.replaceChildren(
+        ...(hits.length ? hits.map(termCard) : [el('div', { class: 'empty' }, '일치하는 용어가 없습니다.')])
+      );
+    },
+  });
+
+  root.append(search, list);
+  return root;
+}
+
+function renderTermDetail(id) {
+  const entry = getTerm(id);
+  if (!entry) return renderTerms();
+
+  const cat = CATEGORIES.find((c) => c.id === entry.category);
+  const calc = entry.calc ? getCalculator(entry.calc) : null;
+  const related = (entry.related || []).map(getTerm).filter(Boolean);
+
+  return el(
+    'div',
+    { class: 'view' },
+    el('a', { class: 'back', href: '#/terms' }, '← 용어 설명'),
+    el('h1', { class: 'page-title' }, entry.term, enTag(entry.en)),
+    el('p', { class: 'page-desc' }, cat ? cat.name : ''),
+    el(
+      'section',
+      { class: 'panel' },
+      el('p', { class: 'term-short' }, entry.short),
+      el('p', { class: 'term-body' }, withTerms(entry.body))
+    ),
+    calc
+      ? el(
+          'div',
+          { class: 'related' },
+          el('span', { class: 'related-label' }, '계산해 보기'),
+          el('a', { class: 'chip', href: `#/calc/${calc.id}` }, calc.name)
+        )
+      : null,
+    related.length
+      ? el(
+          'div',
+          { class: 'related' },
+          el('span', { class: 'related-label' }, '같이 보면 좋은 용어'),
+          related.map((r) => el('a', { class: 'chip', href: `#/terms/${r.id}` }, r.term))
+        )
+      : null
+  );
+}
+
 /* ---------- 홈 ---------- */
 
 function renderHome() {
   const root = el('div', { class: 'view' });
   root.append(profileBar());
 
-  const results = el('div', { class: 'card-grid' });
+  const results = el('div');
   const search = el('input', {
     type: 'search',
     class: 'search',
-    placeholder: '계산기 검색 — "DOF", "배율", "해상도"',
+    placeholder: '계산기 · 용어 검색 — "DOF", "배율", "분주비"',
     oninput: (e) => {
-      const hits = searchCalculators(e.target.value);
-      results.replaceChildren(
-        ...(e.target.value.trim()
-          ? hits.length
-            ? hits.map(calcCard)
-            : [el('div', { class: 'empty' }, '일치하는 계산기가 없습니다.')]
-          : [])
-      );
-      sections.style.display = e.target.value.trim() ? 'none' : '';
+      const q = e.target.value.trim();
+      sections.style.display = q ? 'none' : '';
+      if (!q) return results.replaceChildren();
+
+      // 계산기와 용어를 함께 찾는다. 뜻만 알고 싶을 때도 같은 칸에서 해결된다.
+      const calcs = searchCalculators(q);
+      const terms = searchTerms(q);
+      const blocks = [];
+      if (calcs.length) {
+        blocks.push(el('h2', { class: 'section-title' }, '계산기'), el('div', { class: 'card-grid' }, calcs.map(calcCard)));
+      }
+      if (terms.length) {
+        blocks.push(el('h2', { class: 'section-title' }, '용어'), el('div', { class: 'card-grid' }, terms.map(termCard)));
+      }
+      results.replaceChildren(...(blocks.length ? blocks : [el('div', { class: 'empty' }, '일치하는 항목이 없습니다.')]));
     },
   });
   root.append(search, results);
@@ -163,6 +297,21 @@ function renderHome() {
       el('div', { class: 'card-grid' }, favs.map(calcCard))
     );
   }
+
+  sections.append(
+    el('h2', { class: 'section-title' }, '용어'),
+    el(
+      'a',
+      { class: 'glossary-card', href: '#/terms' },
+      el('span', { class: 'glossary-icon' }, '＃'),
+      el(
+        'span',
+        { class: 'glossary-text' },
+        el('span', { class: 'glossary-name' }, '용어 설명', enTag('Glossary')),
+        el('span', { class: 'glossary-desc' }, `${TERMS.length}개 용어 · 계산기에서 점선 밑줄을 누르면 바로 열립니다`)
+      )
+    )
+  );
 
   sections.append(el('h2', { class: 'section-title' }, '대분류'));
   sections.append(
@@ -231,7 +380,7 @@ function renderCalculator(calcId, modeId) {
         el(
           'div',
           { class: `metric ${o.primary ? 'primary' : ''}` },
-          el('div', { class: 'metric-label' }, o.label, enTag(o.en)),
+          el('div', { class: 'metric-label' }, withTerms(o.label), enTag(o.en)),
           el(
             'div',
             { class: 'metric-value' },
@@ -286,7 +435,7 @@ function renderCalculator(calcId, modeId) {
           el(
             'span',
             { class: 'field-label' },
-            f.label,
+            withTerms(f.label),
             enTag(f.en),
             f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null,
             f.optional ? el('span', { class: 'field-opt' }, ' 선택') : null
@@ -405,7 +554,7 @@ function renderCalculator(calcId, modeId) {
               'div',
               { class: 'formula' },
               (Array.isArray(mode.formula) ? mode.formula : [mode.formula]).map((text) =>
-                el('div', { class: 'formula-line' }, text)
+                el('div', { class: 'formula-line' }, withTerms(text))
               )
             )
           : null,
@@ -442,7 +591,7 @@ function renderProfile() {
           el(
             'span',
             { class: 'field-label' },
-            f.label,
+            withTerms(f.label),
             enTag(f.en),
             f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null
           )
@@ -547,8 +696,10 @@ export function route() {
   let view;
   if (seg === 'c') view = renderCategory(a);
   else if (seg === 'calc') view = renderCalculator(a, b);
+  else if (seg === 'terms') view = a ? renderTermDetail(a) : renderTerms();
   else if (seg === 'profile') view = renderProfile();
   else view = renderHome();
+  closeTermSheet();
   app().replaceChildren(view);
   window.scrollTo(0, 0);
 }
