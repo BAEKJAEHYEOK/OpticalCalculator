@@ -8,6 +8,7 @@ import { cameraCalculators } from '../calc/camera.js';
 import { lightingCalculators } from '../calc/lighting.js';
 import { geometryCalculators } from '../calc/geometry.js';
 import { waveCalculators } from '../calc/wave.js';
+import { encoderCalculators } from '../calc/encoder.js';
 
 export const CATEGORIES = [
   { id: 'lens', name: '렌즈', en: 'Lens', icon: '◎', desc: 'Lens Selection · DOF · F-number · Diffraction' },
@@ -15,6 +16,7 @@ export const CATEGORIES = [
   { id: 'lighting', name: '조명', en: 'Lighting', icon: '✦', desc: 'Illuminance · Inverse Square · Exposure · Strobe' },
   { id: 'geometry', name: '기하 · 정렬', en: 'Geometry', icon: '⊾', desc: 'AOV · Pixel↔mm · Perspective Error · Telecentric' },
   { id: 'wave', name: '파동 · 재료', en: 'Wave · Material', icon: '∿', desc: "Snell's Law · Critical Angle · Index · Grating" },
+  { id: 'encoder', name: '엔코더 · 트리거', en: 'Encoder · Trigger', icon: '⟳', desc: 'Encoder Resolution · Scaler · Divider · Pulse Width' },
 ];
 
 // 모드에 속하는 필드. 새 필드를 추가하면 여기에도 넣어야 단일 모드 계산기에 전달된다.
@@ -39,6 +41,7 @@ const RAW = [
   ...lightingCalculators,
   ...geometryCalculators,
   ...waveCalculators,
+  ...encoderCalculators,
 ];
 
 export const CALCULATORS = RAW.map(normalize);

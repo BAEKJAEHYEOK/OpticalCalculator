@@ -350,6 +350,67 @@ check('격자 주기 µm', ogr.periodUm, 1000 / 600, 1e-12);
 check('1차 회절각', ogr.diffractionDeg, (Math.asin(0.55 / (1000 / 600)) * 180) / Math.PI, 1e-9);
 check('0차는 직진', modeOf('grating').compute({ linesPerMm: 600, lambdaNm: 550, order: 0, incidenceDeg: 0 }).diffractionDeg, 0, 1e-12);
 
+head('[엔코더 · 실측]  이동 100 mm 에 500 펄스, 픽셀 18.3 µm');
+const oem = modeOf('encoder-resolution', 'measured').compute({ travelMm: 100, pulses: 500, imageUm: 18.3 });
+check('엔코더 분해능 µm', oem.encoderUm, 200, 1e-9);
+check('스케일러', oem.scaler, 200 / 18.3, 1e-9);
+line(Math.abs(oem.scaler - 10.928) < 0.001 ? 'pass' : 'fail',
+  `${Math.abs(oem.scaler - 10.928) < 0.001 ? 'PASS' : 'FAIL'}  현장 계산서 값 10.928 과 일치 (${oem.scaler.toFixed(3)})`);
+if (!(Math.abs(oem.scaler - 10.928) < 0.001)) failed++;
+
+head('[엔코더 · 로터리]  롤러 48 mm, 5000 PPR 4체배');
+const oer = modeOf('encoder-resolution', 'rotary').compute({ rollerMm: 48, ppr: 5000, multiplier: 4, imageUm: 42 });
+check('총 펄스', oer.totalPulses, 20000, 1e-9);
+check('엔코더 분해능 µm', oer.encoderUm, (48000 * Math.PI) / 20000, 1e-12);
+// 엑셀 시트는 원주율 3.14 를 써서 7.536 이 나온다. π 로 계산하면 7.5398 이다.
+line(Math.abs(oer.encoderUm - 7.54) < 0.01 ? 'pass' : 'fail',
+  `${Math.abs(oer.encoderUm - 7.54) < 0.01 ? 'PASS' : 'FAIL'}  시트의 7.54 µm 와 일치 (${oer.encoderUm.toFixed(4)})`);
+if (!(Math.abs(oer.encoderUm - 7.54) < 0.01)) failed++;
+
+head('[엔코더 · 필요 사양]  역방향 — 구한 PPR 을 넣으면 목표 분해능이 나와야 한다');
+const oreq = modeOf('encoder-resolution', 'required').compute({ rollerMm: 48, targetUm: 7.5398, multiplier: 4 });
+check('필요 PPR', oreq.requiredPpr, 5000, 1);
+check('역산 분해능', modeOf('encoder-resolution', 'rotary')
+  .compute({ rollerMm: 48, ppr: oreq.requiredPpr, multiplier: 4, imageUm: 42 }).encoderUm, 7.5398, 1e-3);
+
+head('[분주비 · 트리거]  이미지 18 µm, 엔코더 2 µm, 300 mm/s');
+const vtd = { imageUm: 18, encoderUm: 2, speedMmS: 300, guardUs: 0.1, timerNs: 20 };
+const otd = modeOf('trigger-divider').compute(vtd);
+check('분주비', otd.divider, 9, 1e-12);
+check('최대주파수 Hz', otd.maxFreqHz, 150000, 1e-9);
+check('엔코더 주기 µs', otd.periodUs, 1e6 / 150000, 1e-12);
+check('트리거 유효 펄스폭 µs', otd.pulseWidthUs, 1e6 / 150000 - 0.1, 1e-12);
+// 현장 계산서는 6.66 으로 반올림해 328 이 나온다. 반올림 없이 계산하면 328.3 -> 버림 328.
+check('펄스폭 설정값', otd.pwSetting, 328, 0);
+check('딜레이', otd.delay, 0, 0);
+check('분주비 정수면 Y 분해능 = 이미지 분해능', otd.yUmRound, 18, 1e-12);
+
+head('[분주비 · 시트 조건]  이미지 18.3 µm, 엔코더 0.5 µm, 300 mm/s');
+const osheet = modeOf('trigger-divider').compute({ imageUm: 18.3, encoderUm: 0.5, speedMmS: 300, guardUs: 0.1, timerNs: 20 });
+check('분주비', osheet.divider, 36.6, 1e-9);
+check('최대주파수 Hz', osheet.maxFreqHz, 600000, 1e-9);
+check('엔코더 주기 µs', osheet.periodUs, 1 / 600000 * 1e6, 1e-12);
+check('트리거 유효 펄스폭 µs', osheet.pulseWidthUs, 1.5666666666666667, 1e-9);
+check('펄스폭 설정값', osheet.pwSetting, Math.floor(1.5666666666666667 * 1000 / 20), 0);
+check('반내림 분주비', osheet.dividerFloor, 36, 0);
+check('반올림 분주비', osheet.dividerRound, 37, 0);
+
+head('[분주비 · 로터리 조건]  이미지 42 µm, 엔코더 7.536 µm, 550 mm/s');
+const orot = modeOf('trigger-divider').compute({ imageUm: 42, encoderUm: 7.536, speedMmS: 550, guardUs: 0.1, timerNs: 20 });
+check('분주비', orot.divider, 42 / 7.536, 1e-9);
+check('최대주파수 Hz', orot.maxFreqHz, 550000 / 7.536, 1e-6);
+check('엔코더 주기 µs', orot.periodUs, 13.7018, 1e-3);
+// 시트 B13 의 "6분주 사용시 82.25 us" 와 맞아야 한다.
+check('6분주 트리거 주기 µs', orot.periodUs * 6, 82.21, 0.05);
+check('반올림 분주비', orot.dividerRound, 6, 0);
+
+head('[분주비 · 경계]  속도가 너무 빠르면 펄스폭이 남지 않아야 한다');
+const vfast = { imageUm: 18, encoderUm: 0.5, speedMmS: 20000, guardUs: 0.1, timerNs: 20 };
+const wfast = modeOf('trigger-divider').warn(vfast, modeOf('trigger-divider').compute(vfast));
+line(wfast.some((w) => w.level === 'danger') ? 'pass' : 'fail',
+  `${wfast.some((w) => w.level === 'danger') ? 'PASS' : 'FAIL'}  주기 < 가드 타임이면 위험 경고`);
+if (!wfast.some((w) => w.level === 'danger')) failed++;
+
 head('[레지스트리]  모든 계산기가 기본값만으로 계산·도해까지 통과해야 한다');
 let broken = 0;
 for (const calc of ALL) {

@@ -21,7 +21,10 @@
 
 <script type="module">
   import { start } from './core/render.js';
+  import { start as startBackNav } from './core/backnav.js';
   start();
+  // 안드로이드 하드웨어 뒤로가기를 화면 계층대로 처리한다. 웹에서는 아무것도 하지 않는다.
+  startBackNav();
 
   // 서비스 워커는 보안 컨텍스트(https 또는 localhost)에서만 등록된다.
   // LAN 의 http 주소로 열면 등록이 거부되므로 아예 시도하지 않는다. 계산 기능은 그대로 동작한다.

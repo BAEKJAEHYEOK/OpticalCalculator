@@ -278,6 +278,28 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 /* 긴 식이 화면을 밀어내지 않도록 줄바꿈을 허용한다. */
 .formula-line { overflow-wrap: anywhere; }
 
+/* 종료 확인 대화상자 */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.dialog-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  width: 100%;
+  max-width: 320px;
+}
+.dialog-title { margin: 0 0 18px; font-size: 15px; font-weight: 600; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* 도해. 색은 color 로 넘긴다 — SVG marker 가 currentColor 를 통해 받아간다. */
 .diagram-box {
   margin-top: 10px;

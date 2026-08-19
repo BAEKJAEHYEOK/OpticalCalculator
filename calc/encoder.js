@@ -1,0 +1,272 @@
+// 엔코더 · 트리거 대분류.
+// 이송을 따라 라인을 찍을 때, 엔코더 펄스를 몇 개마다 촬상할지(분주비)와
+// 트리거 보드에 넣을 펄스폭 설정값을 구한다.
+// 이 값이 맞지 않으면 Y 방향 배율이 틀어져 상이 늘어나거나 눌린다.
+
+export const encoderCalculators = [
+  {
+    id: 'encoder-resolution',
+    category: 'encoder',
+    name: '엔코더 분해능 · 스케일러',
+    en: 'Encoder Resolution',
+    summary: '엔코더 한 펄스가 이송 몇 µm 인지 구하고, 이미지 분해능과의 비를 냅니다',
+    tags: ['엔코더', 'encoder', '분해능', '스케일러', 'scaler', '펄스', 'PPR', '체배', '롤러', '리니어'],
+    related: ['trigger-divider', 'line-rate'],
+    modes: [
+      {
+        id: 'measured',
+        name: '실측 방식',
+        en: 'Measured',
+        formula: [
+          '엔코더 분해능(µm) = 이동거리(mm) / 펄스 수 × 1000',
+          '스케일러 = 엔코더 분해능 / 이미지 분해능',
+        ],
+        inputs: [
+          { key: 'travelMm', label: '물류 이동거리', en: 'Travel', unit: 'mm', default: 100, min: 0.001, step: 1,
+            hint: '실제로 이동시킨 거리' },
+          { key: 'pulses', label: '펄스 수', en: 'Pulses', unit: 'pulse', default: 500, min: 1, step: 1,
+            hint: '그 거리를 이동하는 동안 세어진 펄스 수' },
+          { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 18.3, min: 0.001, step: 0.1,
+            hint: '대상 위에서 픽셀 하나가 차지하는 크기' },
+        ],
+        outputs: [
+          { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse', digits: 4, primary: true },
+          { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 3, primary: true },
+          { key: 'pulsePerMm', label: '1 mm 당 펄스', en: 'Pulses per mm', unit: 'pulse', digits: 2 },
+          { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 3 },
+        ],
+        compute(v) {
+          const encoderUm = (v.travelMm / v.pulses) * 1000;
+          return {
+            encoderUm,
+            scaler: encoderUm / v.imageUm,
+            pulsePerMm: v.pulses / v.travelMm,
+            divider: v.imageUm / encoderUm,
+          };
+        },
+        warn(v, o) {
+          const warns = [];
+          if (o.encoderUm > v.imageUm) {
+            warns.push({
+              level: 'warn',
+              text: `엔코더 한 펄스가 ${o.encoderUm.toFixed(2)} µm 로 픽셀 ${v.imageUm} µm 보다 굵습니다. 펄스마다 찍으면 Y 방향이 ${o.scaler.toFixed(2)} 배 늘어나므로, 그랩보드 스케일러로 보정하거나 더 조밀한 엔코더가 필요합니다.`,
+            });
+          } else {
+            warns.push({
+              level: 'info',
+              text: `엔코더가 픽셀보다 조밀합니다. 분주비 ${o.divider.toFixed(2)} 로 나눠 촬상하면 됩니다. 분주비 계산기에서 트리거 설정값을 구하세요.`,
+            });
+          }
+          warns.push({
+            level: 'info',
+            text: '이동거리를 길게 잡을수록 분해능이 정확해집니다. 한 바퀴 이상 돌려 재는 것이 좋습니다.',
+          });
+          return warns;
+        },
+      },
+      {
+        id: 'rotary',
+        name: '로터리 엔코더',
+        en: 'Rotary Encoder',
+        formula: [
+          '엔코더 분해능(µm) = 롤러 지름(µm) × π / (엔코더 PPR × 체배)',
+          '스케일러 = 엔코더 분해능 / 이미지 분해능',
+        ],
+        inputs: [
+          { key: 'rollerMm', label: '롤러 지름', en: 'Roller Diameter', unit: 'mm', default: 48, min: 0.001, step: 0.1 },
+          { key: 'ppr', label: '엔코더 PPR', en: 'Pulses per Revolution', unit: 'pulse', default: 5000, min: 1, step: 1,
+            hint: '엔코더 1회전당 펄스 수' },
+          { key: 'multiplier', label: '체배', en: 'Multiplier', unit: '×', default: 4, min: 1, step: 1,
+            hint: 'A/B상 4체배가 일반적' },
+          { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 42, min: 0.001, step: 0.1 },
+        ],
+        outputs: [
+          { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse', digits: 4, primary: true },
+          { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 4, primary: true },
+          { key: 'totalPulses', label: '1회전당 총 펄스', en: 'Counts per Revolution', unit: 'pulse', digits: 0 },
+          { key: 'circumferenceMm', label: '롤러 둘레', en: 'Circumference', unit: 'mm', digits: 2 },
+          { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 4 },
+        ],
+        compute(v) {
+          const totalPulses = v.ppr * v.multiplier;
+          const circumferenceUm = v.rollerMm * 1000 * Math.PI;
+          const encoderUm = circumferenceUm / totalPulses;
+          return {
+            encoderUm,
+            divider: v.imageUm / encoderUm,
+            totalPulses,
+            circumferenceMm: circumferenceUm / 1000,
+            scaler: encoderUm / v.imageUm,
+          };
+        },
+        warn(v, o) {
+          const warns = [{
+            level: 'info',
+            text: `분주비가 ${o.divider.toFixed(2)} 입니다. 트리거 보드에는 정수만 넣을 수 있으므로 분주비 계산기에서 반내림·반올림 결과를 비교하세요.`,
+          }];
+          warns.push({
+            level: 'info',
+            text: '원주율을 3.1416 으로 계산합니다. 기존 엑셀 시트가 3.14 를 쓴다면 값이 0.05 % 정도 차이 납니다.',
+          });
+          return warns;
+        },
+      },
+      {
+        id: 'required',
+        name: '필요 엔코더 사양',
+        en: 'Required Encoder',
+        formula: [
+          '필요 총 펄스 = 롤러 지름(µm) × π / 목표 엔코더 분해능(µm)',
+          '필요 PPR = 필요 총 펄스 / 체배',
+        ],
+        inputs: [
+          { key: 'rollerMm', label: '롤러 지름', en: 'Roller Diameter', unit: 'mm', default: 48, min: 0.001, step: 0.1 },
+          { key: 'targetUm', label: '목표 엔코더 분해능', en: 'Target Resolution', unit: 'µm', default: 7.5, min: 0.001, step: 0.1 },
+          { key: 'multiplier', label: '체배', en: 'Multiplier', unit: '×', default: 4, min: 1, step: 1 },
+        ],
+        outputs: [
+          { key: 'requiredPpr', label: '필요 PPR', en: 'Required PPR', unit: 'pulse', digits: 0, primary: true },
+          { key: 'requiredTotal', label: '필요 총 펄스', en: 'Counts per Revolution', unit: 'pulse', digits: 0, primary: true },
+          { key: 'circumferenceMm', label: '롤러 둘레', en: 'Circumference', unit: 'mm', digits: 2 },
+          { key: 'actualUm', label: '표준 PPR 적용 시 분해능', en: 'With Standard PPR', unit: 'µm', digits: 4 },
+          { key: 'standardPpr', label: '가까운 표준 PPR', en: 'Nearest Standard', unit: 'pulse', digits: 0 },
+        ],
+        compute(v) {
+          const circumferenceUm = v.rollerMm * 1000 * Math.PI;
+          const requiredTotal = circumferenceUm / v.targetUm;
+          const requiredPpr = requiredTotal / v.multiplier;
+          // 시중 로터리 엔코더가 흔히 내는 PPR. 이 중 가까운 것을 골라 실제 분해능을 낸다.
+          const STANDARD = [100, 200, 360, 500, 600, 1000, 1024, 2000, 2500, 3600, 5000, 10000];
+          const standardPpr = STANDARD.reduce(
+            (best, cur) => (Math.abs(cur - requiredPpr) < Math.abs(best - requiredPpr) ? cur : best),
+            STANDARD[0]
+          );
+          return {
+            requiredPpr,
+            requiredTotal,
+            circumferenceMm: circumferenceUm / 1000,
+            standardPpr,
+            actualUm: circumferenceUm / (standardPpr * v.multiplier),
+          };
+        },
+        warn(v, o) {
+          const gap = ((o.actualUm - v.targetUm) / v.targetUm) * 100;
+          return [{
+            level: Math.abs(gap) > 10 ? 'warn' : 'info',
+            text: `표준 ${o.standardPpr} PPR 을 쓰면 분해능이 ${o.actualUm.toFixed(3)} µm 로 목표와 ${gap.toFixed(1)} % 차이 납니다. 분주비를 정수로 맞출 수 있는지 함께 확인하세요.`,
+          }];
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'trigger-divider',
+    category: 'encoder',
+    name: '분주비 · 트리거 펄스폭',
+    en: 'Trigger Divider',
+    summary: '트리거 보드에 넣을 분주비와 펄스폭 설정값을 구합니다. 이 값이 맞아야 Y 배율이 틀어지지 않습니다',
+    tags: ['분주비', 'divider', '트리거', 'trigger', '펄스폭', 'pulse width', '엔코더', '주파수', '라인스캔'],
+    related: ['encoder-resolution', 'line-rate'],
+    formula: [
+      '분주비 = 이미지 분해능(µm) / 엔코더 분해능(µm)',
+      '입력엔코더 최대주파수(Hz) = 최대 이동속도(µm/s) / 엔코더 분해능(µm)',
+      '입력엔코더 주기(µs) = 1 / 최대주파수 × 1000000',
+      '트리거 유효 펄스폭(µs) = 입력엔코더 주기 − 가드 타임',
+      '펄스폭 설정값 = 트리거 유효 펄스폭 × 1000 / 타이머 분해능(ns)',
+      '트리거 출력 주기(µs) = 입력엔코더 주기 × 적용 분주비',
+    ],
+    inputs: [
+      { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 18, min: 0.001, step: 0.1,
+        hint: '대상 위 픽셀 크기. 이 값에 Y 분해능을 맞춥니다' },
+      { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm', default: 2, min: 0.0001, step: 0.1,
+        hint: '엔코더 한 펄스당 이송량' },
+      { key: 'speedMmS', label: '최대 이동속도', en: 'Max Speed', unit: 'mm/s', default: 300, min: 0.001, step: 10 },
+      { key: 'guardUs', label: '가드 타임', en: 'Guard Time', unit: 'µs', default: 0.1, min: 0, step: 0.01,
+        hint: '펄스폭이 주기를 넘지 않도록 빼는 여유' },
+      { key: 'timerNs', label: '타이머 분해능', en: 'Timer Resolution', unit: 'ns', default: 20, min: 0.1, step: 1,
+        hint: '트리거 보드의 설정 단위. ER-3 는 20 ns' },
+    ],
+    outputs: [
+      { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 4, primary: true },
+      { key: 'pwSetting', label: '펄스폭 설정값', en: 'Pulse Width Setting', unit: '', digits: 0, primary: true },
+      { key: 'dividerFloor', label: '적용 분주비 (반내림)', en: 'Floor', unit: '', digits: 0 },
+      { key: 'yUmFloor', label: '반내림 시 Y 분해능', en: 'Y Resolution', unit: 'µm', digits: 3 },
+      { key: 'dividerRound', label: '적용 분주비 (반올림)', en: 'Round', unit: '', digits: 0 },
+      { key: 'yUmRound', label: '반올림 시 Y 분해능', en: 'Y Resolution', unit: 'µm', digits: 3 },
+      { key: 'maxFreqHz', label: '입력엔코더 최대주파수', en: 'Max Frequency', unit: 'Hz', digits: 0 },
+      { key: 'periodUs', label: '입력엔코더 주기', en: 'Encoder Period', unit: 'µs', digits: 4 },
+      { key: 'pulseWidthUs', label: '트리거 유효 펄스폭', en: 'Trigger Pulse Width', unit: 'µs', digits: 4 },
+      { key: 'triggerPeriodUs', label: '트리거 출력 주기', en: 'Trigger Period', unit: 'µs', digits: 3 },
+      { key: 'lineRate', label: '라인레이트', en: 'Line Rate', unit: 'lines/s', digits: 0 },
+      { key: 'delay', label: '딜레이', en: 'Delay', unit: '', digits: 0 },
+    ],
+    compute(v) {
+      const divider = v.imageUm / v.encoderUm;
+      const dividerFloor = Math.max(1, Math.floor(divider));
+      const dividerRound = Math.max(1, Math.round(divider));
+      const maxFreqHz = (v.speedMmS * 1000) / v.encoderUm;
+      const periodUs = (1 / maxFreqHz) * 1e6;
+      const pulseWidthUs = periodUs - v.guardUs;
+      const triggerPeriodUs = periodUs * dividerRound;
+      return {
+        divider,
+        dividerFloor,
+        dividerRound,
+        yUmFloor: v.encoderUm * dividerFloor,
+        yUmRound: v.encoderUm * dividerRound,
+        maxFreqHz,
+        periodUs,
+        pulseWidthUs,
+        // 설정값은 타이머 눈금 개수라 정수여야 한다. 나머지는 버린다.
+        pwSetting: Math.floor((pulseWidthUs * 1000) / v.timerNs),
+        triggerPeriodUs,
+        lineRate: 1e6 / triggerPeriodUs,
+        // 트리거 보드 딜레이는 기본 0 으로 둔다.
+        delay: 0,
+      };
+    },
+    warn(v, o) {
+      const warns = [];
+
+      if (o.pulseWidthUs <= 0) {
+        return [{
+          level: 'danger',
+          text: `입력엔코더 주기 ${o.periodUs.toFixed(3)} µs 가 가드 타임 ${v.guardUs} µs 보다 짧습니다. 이 속도에서는 트리거를 낼 수 없으니 이송을 늦추거나 분해능이 굵은 엔코더를 쓰세요.`,
+        }];
+      }
+
+      if (Number.isInteger(o.divider)) {
+        warns.push({
+          level: 'info',
+          text: `분주비가 정수 ${o.divider} 로 딱 떨어집니다. Y 분해능이 이미지 분해능과 정확히 일치합니다.`,
+        });
+      } else {
+        // 정수만 넣을 수 있으므로 어느 쪽이 이미지 분해능에 가까운지 알려준다.
+        const gapFloor = Math.abs(o.yUmFloor - v.imageUm);
+        const gapRound = Math.abs(o.yUmRound - v.imageUm);
+        const pick = gapRound <= gapFloor ? '반올림' : '반내림';
+        const pickDiv = gapRound <= gapFloor ? o.dividerRound : o.dividerFloor;
+        const pickY = gapRound <= gapFloor ? o.yUmRound : o.yUmFloor;
+        const pct = ((pickY - v.imageUm) / v.imageUm) * 100;
+        warns.push({
+          level: 'warn',
+          text: `분주비 ${o.divider.toFixed(3)} 는 정수가 아닙니다. 트리거 보드에는 정수만 들어가므로 ${pick} 한 ${pickDiv} 을 쓰면 Y 분해능이 ${pickY.toFixed(3)} µm 가 되어 이미지 분해능과 ${pct.toFixed(1)} % 차이 납니다.`,
+        });
+        if (Math.abs(pct) > 5) {
+          warns.push({
+            level: 'warn',
+            text: `${Math.abs(pct).toFixed(1)} % 는 상이 눈에 띄게 늘어나거나 눌리는 수준입니다. 엔코더 분해능이나 렌즈 배율을 조정해 분주비가 정수에 가깝게 나오도록 맞추세요.`,
+          });
+        }
+      }
+
+      warns.push({
+        level: 'info',
+        text: `펄스폭 설정값 ${o.pwSetting} 은 타이머 눈금 개수입니다. 실제 폭은 ${((o.pwSetting * v.timerNs) / 1000).toFixed(3)} µs 이며, 딜레이는 0 으로 둡니다.`,
+      });
+
+      return warns;
+    },
+  },
+];
