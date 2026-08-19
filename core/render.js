@@ -54,6 +54,17 @@ const writeDraft = (key, values) => {
   }
 };
 
+// 값을 이리저리 바꿔보다 원래대로 못 돌아가는 상황을 막는다.
+const clearDraft = (key) => {
+  try {
+    const all = readDrafts();
+    delete all[key];
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(all));
+  } catch {
+    // 무시. 어차피 화면은 기본값으로 다시 그린다.
+  }
+};
+
 // 값 우선순위: 사용자가 이 계산기에서 직접 넣은 값 > 활성 프로필 > 정의된 기본값
 function initialValues(calcId, mode) {
   const draft = readDrafts()[`${calcId}:${mode.id}`] || {};
@@ -343,6 +354,18 @@ function renderCalculator(calcId, modeId) {
     '현재 값을 프로필에 저장'
   );
 
+  const resetBtn = el(
+    'button',
+    {
+      class: 'ghost-btn',
+      onclick: () => {
+        clearDraft(`${calc.id}:${mode.id}`);
+        route();
+      },
+    },
+    '기본값으로 되돌리기'
+  );
+
   const related = (calc.related || []).map(getCalculator).filter(Boolean);
 
   recompute();
@@ -361,7 +384,7 @@ function renderCalculator(calcId, modeId) {
         { class: 'panel' },
         el('h2', { class: 'panel-title' }, '입력'),
         inputGrid,
-        el('div', { class: 'panel-foot' }, saveBtn)
+        el('div', { class: 'panel-foot' }, saveBtn, resetBtn)
       ),
       el(
         'section',

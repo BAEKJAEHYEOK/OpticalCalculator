@@ -64,6 +64,24 @@ LIVE_RELOAD = """
 """
 
 
+# 예전에 같은 주소로 접속해 서비스 워커가 등록돼 있으면, 그 워커가 캐시에서
+# index.html 을 먼저 내주기 때문에 위의 해제 스크립트가 실행될 기회조차 없다.
+# 브라우저는 페이지를 열 때 sw.js 를 바이트 비교하므로, 여기서 "자기를 지우는"
+# 워커를 내려주면 그게 설치되면서 캐시를 비우고 스스로 등록을 해제한다.
+SW_KILL = """// 개발 서버 전용. 배포본 sw.js 를 대체해 기존 캐시를 걷어낸다.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+    await self.registration.unregister();
+    const windows = await self.clients.matchAll({ type: 'window' });
+    windows.forEach((c) => c.navigate(c.url));
+  })());
+});
+"""
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -73,8 +91,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
-        if self.path.split('?')[0] == '/__mtime':
+        path = self.path.split('?')[0]
+
+        if path == '/__mtime':
             return self._send(latest_mtime().encode(), 'text/plain; charset=utf-8')
+
+        if path == '/sw.js':
+            return self._send(SW_KILL.encode('utf-8'), 'application/javascript; charset=utf-8')
 
         target = self.translate_path(self.path)
         if os.path.isdir(target):
@@ -115,11 +138,30 @@ def lan_addresses():
 
 
 class Server(socketserver.ThreadingTCPServer):
-    allow_reuse_address = True
+    # 윈도우에서 allow_reuse_address 는 이미 다른 프로세스가 쓰는 포트에도 바인드를
+    # 허용한다. 그러면 새 서버가 뜬 것처럼 보이지만 요청은 옛 서버로 가고,
+    # 고친 내용이 반영되지 않는 채로 원인을 찾기 어려워진다. 반드시 꺼 둔다.
+    allow_reuse_address = False
     daemon_threads = True
 
 
+def port_in_use(port: int) -> bool:
+    with socket.socket() as probe:
+        probe.settimeout(0.4)
+        return probe.connect_ex(('127.0.0.1', port)) == 0
+
+
 if __name__ == '__main__':
+    if port_in_use(PORT):
+        print(f'포트 {PORT} 를 이미 다른 프로세스가 쓰고 있습니다.')
+        print('예전에 띄워 둔 서버가 남아 있으면 그쪽이 응답해서 수정이 반영되지 않습니다.')
+        print()
+        print('정리하려면 (관리자 권한 불필요):')
+        print('  powershell -Command "Get-Process python | Stop-Process -Force"')
+        print()
+        print(f'또는 다른 포트로 띄우세요:  run.bat {PORT + 1}')
+        sys.exit(1)
+
     print('Optical Calculator - 개발 서버')
     print('-' * 52)
     print(f'  PC     http://127.0.0.1:{PORT}/index.html')
