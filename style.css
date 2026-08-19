@@ -306,6 +306,11 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .d-limit { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
 
 .d-coc { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.d-medium { fill: var(--info-bg); stroke: var(--info); stroke-width: 1; }
+.d-interface { stroke: var(--info); stroke-width: 1.5; }
+.d-ray-weak { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
+.d-ray-ghost { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 4; }
+.d-cone { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.2; }
 .d-spot { fill: var(--text-2); }
 .d-smear { fill: var(--accent); opacity: 0.45; }
 .d-px { fill: none; stroke: var(--border-strong); stroke-width: 1; }

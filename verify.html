@@ -249,6 +249,107 @@ const ofdOut = ofdv.compute({ m: 0.192, fNumber: 5.6, pixelUm: 4.5, cocMult: 2 }
 line(ofdv.diagram ? 'pass' : 'fail', `${ofdv.diagram ? 'PASS' : 'FAIL'}  초점심도에 도해가 붙어 있음`);
 if (!ofdv.diagram) failed++;
 
+head('[조도]  광도 100 cd, 거리 500 mm');
+const oil = modeOf('illuminance', 'lux').compute({ intensity: 100, distance: 500, halfAngle: 30 });
+check('조도 lux', oil.lux, 100 / 0.25, 1e-9);
+check('입체각 sr', oil.solidAngle, 2 * Math.PI * (1 - Math.cos(Math.PI / 6)), 1e-9);
+// 역방향: 이 조도를 목표로 넣으면 원래 광도가 나와야 한다.
+check('광도 복원', modeOf('illuminance', 'intensity').compute({ lux: oil.lux, distance: 500, halfAngle: 30 }).intensity, 100, 1e-9);
+
+head('[역제곱 법칙]  거리를 2배로 하면 1/4, 정확히 2 스톱');
+const ois = modeOf('inverse-square').compute({ baseLux: 2000, baseDist: 300, newDist: 600 });
+check('새 조도', ois.newLux, 500, 1e-9);
+check('밝기 배수', ois.ratio, 0.25, 1e-12);
+check('스톱 변화', ois.stops, -2, 1e-12);
+
+head('[노출 조건 비교]  노출 1/4, 조리개 한 단 개방이면 서로 상쇄되지 않는다');
+const oeb = modeOf('exposure-balance').compute({
+  expBefore: 1000, expAfter: 250, fBefore: 5.6, fAfter: 2.8,
+  luxBefore: 2000, luxAfter: 2000, gainBefore: 0, gainAfter: 0 });
+check('노출 기여 stop', oeb.expStops, -2, 1e-12);
+check('조리개 기여 stop', oeb.apertureStops, 2, 1e-12);
+check('최종 배수', oeb.total, 1, 1e-12);
+// 게인 6 dB 는 밝기 2배, 즉 1 스톱이다.
+check('게인 6dB = 1 stop', modeOf('exposure-balance').compute({
+  expBefore: 1000, expAfter: 1000, fBefore: 5.6, fAfter: 5.6,
+  luxBefore: 2000, luxAfter: 2000, gainBefore: 0, gainAfter: 6.0206 }).gainStops, 1, 1e-4);
+
+head('[스트로브]  200 µs × 30 Hz');
+const ost = modeOf('strobe').compute({ pulseUs: 200, freqHz: 30, overdrive: 5 });
+check('듀티 %', ost.dutyPct, 200e-6 * 30 * 100, 1e-12);
+check('평균 부하', ost.load, 200e-6 * 30 * 5, 1e-12);
+check('허용 오버드라이브', ost.maxOverdrive, 1 / (200e-6 * 30), 1e-9);
+
+head('[조사 영역]  발광부 50 mm, 반각 30°, 거리 300 mm');
+const olc = modeOf('light-coverage').compute({ emitterMm: 50, halfAngle: 30, distance: 300, fovW: 120 });
+check('조사 지름', olc.coverage, 50 + 2 * 300 * Math.tan(Math.PI / 6), 1e-9);
+check('시야 끝 각도', olc.edgeAngle, (Math.atan(60 / 300) * 180) / Math.PI, 1e-9);
+check('가장자리 조도비 %', olc.edgeRatio, Math.cos(Math.atan(60 / 300)) ** 4 * 100, 1e-9);
+
+head('[화각]  렌즈 선정 계산기와 시야가 일치해야 한다');
+const vav = { wpx: 5120, hpx: 5120, pixelUm: 4.5, f: 50, wd: 300 };
+const oav = modeOf('angle-of-view').compute(vav);
+const ofovCheck = modeOf('lens-select', 'fov').compute({ ...cam, f: 50, wd: 300 });
+check('시야 가로 일치', oav.fovW, ofovCheck.fovW, 1e-9);
+check('수평 화각', oav.aovH, 2 * (Math.atan(oav.fovW / 2 / 300) * 180) / Math.PI, 1e-9);
+check('무한원 기준 화각', oav.aovInf, 2 * (Math.atan(23.04 / 2 / 50) * 180) / Math.PI, 1e-9);
+
+head('[픽셀 캘리브레이션]  50 mm 가 2133 px');
+const opc = modeOf('pixel-calibration').compute({ refMm: 50, refPx: 2133, measuredPx: 2133, edgeErrorPx: 0.5 });
+check('축척 mm/px', opc.scaleMm, 50 / 2133, 1e-12);
+check('기준 픽셀을 다시 넣으면 기준 실측', opc.measuredMm, 50, 1e-9);
+check('불확실도 mm', opc.toleranceMm, (2 * 0.5 * 50) / 2133, 1e-12);
+
+head('[원근 오차]  WD 300, 높이차 5 mm, 길이 50 mm');
+const ope = modeOf('perspective-error').compute({ wd: 300, heightMm: 5, lengthMm: 50, umPerPx: 23.44 });
+check('크기 변화율 %', ope.scalePct, (5 / 300) * 100, 1e-12);
+check('측정 오차 mm', ope.errorMm, 50 * (5 / 300), 1e-12);
+// 허용 높이차를 넣으면 오차가 정확히 1 px 이어야 한다.
+const ope1 = modeOf('perspective-error').compute({ wd: 300, heightMm: ope.allowHeightMm, lengthMm: 50, umPerPx: 23.44 });
+check('허용 높이차에서 오차 = 1 px', ope1.errorPx, 1, 1e-9);
+
+head('[텔레센트릭]  0.1°, 높이차 5 mm');
+const ote = modeOf('telecentric').compute({ telecentricityDeg: 0.1, heightMm: 5, umPerPx: 23.44, wd: 300, lengthMm: 50 });
+check('오차 mm', ote.errorMm, 2 * 5 * Math.tan((0.1 * Math.PI) / 180), 1e-12);
+check('일반 렌즈 비교값', ote.normalErrorMm, ope.errorMm, 1e-12);
+
+head('[카메라 경사]  2°, WD 300, 시야 120');
+const oct = modeOf('camera-tilt').compute({ tiltDeg: 2, wd: 300, fovW: 120, umPerPx: 23.44 });
+check('양끝 거리차', oct.wdDiff, 120 * Math.sin((2 * Math.PI) / 180), 1e-12);
+check('근거리 + 원거리 = 2 × WD', oct.nearWd + oct.farWd, 600, 1e-9);
+check('필요 심도 = 거리차', oct.neededDof, oct.wdDiff, 1e-12);
+
+head('[스넬 법칙]  공기 → 유리 1.52, 입사 30°');
+const osn = modeOf('snell').compute({ n1: 1, n2: 1.52, theta1: 30 });
+check('굴절각', osn.theta2, (Math.asin(Math.sin(Math.PI / 6) / 1.52) * 180) / Math.PI, 1e-9);
+check('수직 입사 반사율 %', osn.normalPct, ((0.52 / 2.52) ** 2) * 100, 1e-9);
+// 수직 입사에서는 프레넬 식이 수직 반사율과 같아야 한다.
+check('0° 에서 두 식 일치', modeOf('snell').compute({ n1: 1, n2: 1.52, theta1: 0 }).reflectancePct, osn.normalPct, 1e-6);
+
+head('[임계각]  유리 1.52 → 공기');
+const oca = modeOf('critical-angle').compute({ n1: 1.52, n2: 1.0 });
+check('임계각', oca.critical, (Math.asin(1 / 1.52) * 180) / Math.PI, 1e-9);
+check('브루스터각', oca.brewster, (Math.atan(1 / 1.52) * 180) / Math.PI, 1e-9);
+// 임계각으로 입사시키면 스넬 계산에서 전반사가 나와야 한다.
+const otir = modeOf('snell').compute({ n1: 1.52, n2: 1.0, theta1: oca.critical + 0.5 });
+line(otir._total ? 'pass' : 'fail', `${otir._total ? 'PASS' : 'FAIL'}  임계각 초과 시 전반사 판정`);
+if (!otir._total) failed++;
+
+head('[평행판]  유리 3 mm, n 1.52, 수직 입사');
+const opp = modeOf('plane-plate').compute({ thickness: 3, n: 1.52, theta1: 0, dofMm: 3.26 });
+check('초점 이동', opp.focusShift, 3 * (1 - 1 / 1.52), 1e-12);
+check('수직 입사면 측면 변위 0', opp.lateralShift, 0, 1e-12);
+check('광로 = 두께', opp.pathLength, 3, 1e-12);
+const oppTilt = modeOf('plane-plate').compute({ thickness: 3, n: 1.52, theta1: 45, dofMm: 3.26 });
+line(oppTilt.lateralShift > 0 ? 'pass' : 'fail', `${oppTilt.lateralShift > 0 ? 'PASS' : 'FAIL'}  기울이면 측면 변위 발생 (${oppTilt.lateralShift.toFixed(4)} mm)`);
+if (!(oppTilt.lateralShift > 0)) failed++;
+
+head('[회절격자]  600 lines/mm, 550 nm, 1차');
+const ogr = modeOf('grating').compute({ linesPerMm: 600, lambdaNm: 550, order: 1, incidenceDeg: 0 });
+check('격자 주기 µm', ogr.periodUm, 1000 / 600, 1e-12);
+check('1차 회절각', ogr.diffractionDeg, (Math.asin(0.55 / (1000 / 600)) * 180) / Math.PI, 1e-9);
+check('0차는 직진', modeOf('grating').compute({ linesPerMm: 600, lambdaNm: 550, order: 0, incidenceDeg: 0 }).diffractionDeg, 0, 1e-12);
+
 head('[레지스트리]  모든 계산기가 기본값만으로 계산·도해까지 통과해야 한다');
 let broken = 0;
 for (const calc of ALL) {

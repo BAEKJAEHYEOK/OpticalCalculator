@@ -56,6 +56,9 @@ function frame(caption, viewBox, ...kids) {
 const label = (x, y, text, cls = 'd-label', anchor = 'middle') =>
   s('text', { x, y, class: cls, 'text-anchor': anchor }, text);
 
+// 각도 라벨은 자주 쓰이므로 도 단위 문자열을 한 곳에서 만든다.
+export const deg = (value) => `${format(value, 2)}°`;
+
 // 치수선: 양끝 화살표 + 보조선 + 가운데 라벨.
 function dimH(x1, x2, y, text, { accent = false, below = false } = {}) {
   const cls = accent ? 'd-dim d-accent' : 'd-dim';
@@ -490,6 +493,135 @@ export function thinLensView({ f, a, b, m, virtual }) {
       `배율 ${format(m, 3)} ×  ·  ${virtual ? '허상 — 상은 대상과 같은 쪽에 맺힙니다' : '실상 — 상은 거꾸로 맺힙니다'}`,
       'd-label-sm'
     )
+  );
+}
+
+/* ---------- 굴절 (스넬 법칙) ---------- */
+
+export function refractionView({ n1, n2, theta1, theta2, reflectance, total }) {
+  const VB_W = 340;
+  const VB_H = 230;
+  const cx = VB_W / 2;
+  const cy = 108;
+  const len = 84;
+
+  const rad = (d) => (d * Math.PI) / 180;
+  // 스침 입사(80° 이상)에서는 광선이 경계면에 붙어 라벨이 겹친다.
+  // 그림에서만 각도를 제한한다 — 표시되는 수치는 실제 값 그대로다.
+  const DRAW_MAX = 75;
+  const drawT1 = Math.min(theta1, DRAW_MAX);
+  const drawT2 = Math.min(theta2 ?? 0, DRAW_MAX);
+  const clamped = theta1 > DRAW_MAX;
+
+  // 각도는 경계면 법선(수직)에서 잰다.
+  const inX = cx - len * Math.sin(rad(drawT1));
+  const inY = cy - len * Math.cos(rad(drawT1));
+  const reflX = cx + len * Math.sin(rad(drawT1));
+
+  const kids = [
+    // 아래쪽이 둘째 매질
+    s('rect', { x: 14, y: cy, width: VB_W - 28, height: 62, class: 'd-medium' }),
+    s('line', { x1: 14, y1: cy, x2: VB_W - 14, y2: cy, class: 'd-interface' }),
+    s('line', { x1: cx, y1: cy - 92, x2: cx, y2: cy + 56, class: 'd-axis' }),
+
+    s('line', { x1: inX, y1: inY, x2: cx, y2: cy, class: 'd-ray' }),
+    s('line', { x1: cx, y1: cy, x2: reflX, y2: inY, class: 'd-ray-weak' }),
+
+    label(14, cy - 8, `n₁ = ${format(n1, 4)}`, 'd-label-sm', 'start'),
+    label(14, cy + 20, `n₂ = ${format(n2, 4)}`, 'd-label-sm', 'start'),
+    // 수직 입사에서는 입사광과 반사광이 같은 선 위에 놓인다.
+    // 라벨을 법선 기준 양쪽으로 갈라 붙여야 겹치지 않는다.
+    label(inX - 6, inY - 6, `입사 ${format(theta1, 2)}°`, 'd-label-sm', 'end'),
+    label(reflX + 6, inY - 6, `반사 ${format(reflectance * 100, 1)} %`, 'd-label-sm', 'start'),
+  ];
+
+  if (total) {
+    kids.push(label(cx, cy + 46, '전반사 — 굴절광이 없습니다', 'd-label'));
+  } else {
+    const outX = cx + len * Math.sin(rad(drawT2));
+    const outY = cy + len * Math.cos(rad(drawT2));
+    kids.push(
+      s('line', { x1: cx, y1: cy, x2: outX, y2: outY, class: 'd-ray' }),
+      label(outX + 2, outY + 14, `굴절 ${format(theta2, 2)}°`, 'd-label')
+    );
+  }
+
+  kids.push(
+    label(
+      VB_W / 2,
+      VB_H - 8,
+      clamped
+        ? 'n₁ sin θ₁ = n₂ sin θ₂  ·  각도는 법선 기준  ·  그림의 각도는 축소 표시'
+        : 'n₁ sin θ₁ = n₂ sin θ₂  ·  각도는 법선 기준',
+      'd-label-sm'
+    )
+  );
+  return frame('굴절 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 평행 유리판 통과 ---------- */
+
+// 유리를 통해 들여다보면 초점이 뒤로 밀리고, 비스듬히 보면 상이 옆으로 어긋난다.
+export function plateShiftView({ thickness, focusShift, lateralShift, theta1 }) {
+  const VB_W = 350;
+  const VB_H = 200;
+  const cy = 84;
+  const plateX = 130;
+  const plateW = 74;
+
+  const rad = (d) => (d * Math.PI) / 180;
+  const drop = Math.tan(rad(theta1)) * 34;
+
+  return frame(
+    '평행판 통과 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('rect', { x: plateX, y: cy - 46, width: plateW, height: 92, class: 'd-medium' }),
+    label(plateX + plateW / 2, cy - 54, `유리 ${format(thickness, 2)} mm`, 'd-label-sm'),
+
+    // 유리가 없을 때의 경로
+    s('line', { x1: 18, y1: cy - drop, x2: VB_W - 18, y2: cy + drop * 1.9, class: 'd-ray-ghost' }),
+    // 유리를 지나며 평행하게 어긋난 경로
+    s('polyline', {
+      points: `${18},${cy - drop} ${plateX},${cy} ${plateX + plateW},${cy + drop * 0.5} ${VB_W - 18},${cy + drop * 1.9 + 16}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
+
+    dimH(plateX, plateX + plateW, cy + 62, `초점 이동 ${format(focusShift, 3)} mm`, { accent: true, below: true }),
+    label(VB_W / 2, VB_H - 24, `측면 변위 ${format(lateralShift, 4)} mm  ·  입사각 ${format(theta1, 1)}°`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 8, '점선 = 유리가 없을 때 경로  ·  개략도 — 어긋남 과장', 'd-label-sm')
+  );
+}
+
+/* ---------- 화각 ---------- */
+
+export function angleOfViewView({ aovDeg, wd, fovW, f }) {
+  const VB_W = 340;
+  const VB_H = 218;
+  const apexX = 40;
+  const apexY = 92;
+  const reach = 250;
+
+  const rad = ((aovDeg / 2) * Math.PI) / 180;
+  const half = Math.min(66, Math.tan(rad) * reach);
+
+  return frame(
+    '화각 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('line', { x1: apexX, y1: apexY, x2: apexX + reach + 14, y2: apexY, class: 'd-axis' }),
+    s('polygon', {
+      points: `${apexX},${apexY} ${apexX + reach},${apexY - half} ${apexX + reach},${apexY + half}`,
+      class: 'd-cone',
+    }),
+    s('ellipse', { cx: apexX, cy: apexY, rx: 6, ry: 26, class: 'd-lens' }),
+    label(apexX, apexY - 34, '렌즈', 'd-label-sm'),
+    s('rect', { x: apexX + reach - 4, y: apexY - half, width: 8, height: half * 2, class: 'd-object' }),
+
+    label(apexX + 52, apexY - 10, `${format(aovDeg, 2)}°`, 'd-label d-accent-fill', 'start'),
+    // 원뿔 높이와 무관하게 고정 위치에 둔다. 화각이 넓어도 아래 설명과 겹치지 않는다.
+    dimH(apexX, apexX + reach, VB_H - 42, `작동거리 ${format(wd, 1)} mm`, { below: false }),
+    dimV(apexY - half, apexY + half, apexX + reach + 22, `시야 ${format(fovW, 1)} mm`, { accent: true }),
+    label(VB_W / 2, VB_H - 8, `초점거리 ${format(f, 2)} mm  ·  화각 = 2 · atan(시야 / 2 · 작동거리)`, 'd-label-sm')
   );
 }
 
