@@ -216,6 +216,13 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .tab .en { font-size: 0.8em; }
 .tab.on .en { color: var(--accent); opacity: 0.8; }
 .field-opt { color: var(--text-3); font-size: 11px; }
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
 /* 프로필에서 채워진 항목은 좌측 띠로 표시한다. */
 .field.from-profile input { border-left: 3px solid var(--accent); }
 

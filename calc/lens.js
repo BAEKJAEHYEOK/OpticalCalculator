@@ -84,13 +84,15 @@ function nearestStandard(f, sensor, wd) {
 const SENSOR_INPUTS = [
   { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
   { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
-  { key: 'pixelUm', label: '픽셀 크기', en: 'Pixel Size', unit: 'µm', profile: 'pixelSize', min: 0.1, step: 0.1 },
-  { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1 },
+  { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
+    min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치. 대상 위 분해능과 다릅니다' },
+  { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
+    hint: '렌즈 조리개값' },
 ];
 
 const SHARED_OUTPUTS = [
   { key: 'm', label: '배율', en: 'Magnification', unit: '×', digits: 4 },
-  { key: 'umPerPx', label: '해상도', en: 'Resolution', unit: 'µm/px', digits: 2 },
+  { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', digits: 2 },
   { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 2 },
   { key: 'sensorW', label: '센서 가로', en: 'Sensor W', unit: 'mm', digits: 2 },
   { key: 'sensorH', label: '센서 세로', en: 'Sensor H', unit: 'mm', digits: 2 },
@@ -116,13 +118,13 @@ export const lensCalculators = [
     category: 'lens',
     name: '렌즈 선정',
     en: 'Lens Selection',
-    summary: 'Sensor · FOV · WD 중 둘을 알 때 나머지 하나를 구합니다',
+    summary: '센서 · FOV · 작동거리 중 둘을 알 때 나머지 하나를 구합니다',
     tags: ['초점거리', 'FOV', 'WD', '배율', 'focal length', 'field of view'],
     related: ['dof', 'resolution'],
     modes: [
       {
         id: 'f',
-        name: '초점거리 구하기',
+        name: '초점거리 계산',
         en: 'Focal Length',
         formula: 'f = WD × S / (FOV + S),   m = S / FOV',
         inputs: [
@@ -168,8 +170,8 @@ export const lensCalculators = [
       },
       {
         id: 'fov',
-        name: '시야 구하기',
-        en: 'FOV',
+        name: 'FOV 계산',
+        en: 'Field of View',
         formula: 'm = f / (WD − f),   FOV = S / m',
         inputs: [
           ...SENSOR_INPUTS,
@@ -208,8 +210,8 @@ export const lensCalculators = [
       },
       {
         id: 'wd',
-        name: '작동거리 구하기',
-        en: 'WD',
+        name: 'WD 계산',
+        en: 'Working Distance',
         formula: 'm = S / FOV,   WD = f × (1 + m) / m',
         inputs: [
           ...SENSOR_INPUTS,
@@ -253,15 +255,17 @@ export const lensCalculators = [
     category: 'lens',
     name: '피사계심도',
     en: 'Depth of Field',
-    summary: 'Magnification 과 F-number 로 초점이 맞는 깊이 범위를 구합니다',
+    summary: '배율과 F수로 초점이 맞는 깊이 범위를 구합니다',
     tags: ['DOF', '심도', '착란원', 'depth of field', 'CoC', '초점심도'],
     related: ['lens-select', 'resolution'],
-    formula: 'DOF = 2 · N · c · (1 + m) / m²,   c = Pixel Size × 배수',
+    formula: 'DOF = 2 · N · c · (1 + m) / m²,   c = 센서 픽셀 크기 × 배수',
     inputs: [
       { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
       { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1 },
-      { key: 'pixelUm', label: '픽셀 크기', en: 'Pixel Size', unit: 'µm', profile: 'pixelSize', min: 0.1, step: 0.1 },
-      { key: 'cocMult', label: '착란원 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5 },
+      { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
+        min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치. 대상 위 분해능과 다릅니다' },
+      { key: 'cocMult', label: '착란원 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
+        hint: '허용 착란원을 센서 픽셀 크기의 몇 배로 볼지' },
     ],
     outputs: [
       { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 3, primary: true },
@@ -309,22 +313,23 @@ export const lensCalculators = [
   {
     id: 'resolution',
     category: 'lens',
-    name: '해상도 · 검출 한계',
-    en: 'Resolution',
-    summary: 'FOV 와 화소수로 픽셀당 실제 치수와 검출 가능한 최소 결함 크기를 구합니다',
-    tags: ['해상도', 'µm/px', '검출', '나이퀴스트', 'resolution', 'nyquist'],
+    name: '분해능 · 검출 한계',
+    en: 'Spatial Resolution',
+    summary: 'FOV 와 화소수로 픽셀 하나가 대상에서 몇 µm 인지, 검출 가능한 최소 결함이 얼마인지 구합니다',
+    tags: ['분해능', '해상도', 'µm/px', '검출', '나이퀴스트', 'resolution', 'nyquist', 'pixel pitch'],
     related: ['lens-select', 'dof'],
-    formula: 'µm/px = FOV(mm) × 1000 / 화소수,   Detection Limit = µm/px × N',
+    formula: '대상 분해능(µm/px) = FOV(mm) × 1000 / 화소수,   검출 한계 = 분해능 × 판정 픽셀수',
     inputs: [
       { key: 'fovW', label: '시야 가로', en: 'FOV W', unit: 'mm', default: 120, min: 0.01 },
       { key: 'fovH', label: '시야 세로', en: 'FOV H', unit: 'mm', default: 90, min: 0.01 },
       { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
       { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
-      { key: 'minPixels', label: '결함 판정 픽셀수', en: 'Pixels on Defect', unit: 'px', default: 3, min: 1, step: 1 },
+      { key: 'minPixels', label: '결함 판정 픽셀수', en: 'Pixels on Defect', unit: 'px', default: 3, min: 1, step: 1,
+        hint: '결함 하나를 몇 픽셀로 잡아야 판정할지' },
     ],
     outputs: [
-      { key: 'umPerPxW', label: '가로 해상도', en: 'Resolution W', unit: 'µm/px', digits: 2, primary: true },
-      { key: 'umPerPxH', label: '세로 해상도', en: 'Resolution H', unit: 'µm/px', digits: 2, primary: true },
+      { key: 'umPerPxW', label: '가로 분해능', en: 'Spatial Resolution W', unit: 'µm/px', digits: 2, primary: true },
+      { key: 'umPerPxH', label: '세로 분해능', en: 'Spatial Resolution H', unit: 'µm/px', digits: 2, primary: true },
       { key: 'detectLimit', label: '검출 한계', en: 'Detection Limit', unit: 'µm', digits: 1 },
       { key: 'nyquist', label: '나이퀴스트 한계', en: 'Nyquist Limit', unit: 'µm', digits: 1 },
       { key: 'aspectSensor', label: '화소 종횡비', en: 'Sensor Aspect', unit: '', digits: 3 },
@@ -360,7 +365,7 @@ export const lensCalculators = [
       if (skew > 0.02) {
         warns.push({
           level: 'warn',
-          text: '가로·세로 해상도가 ' + (skew * 100).toFixed(1) +
+          text: '가로·세로 분해능이 ' + (skew * 100).toFixed(1) +
             ' % 어긋납니다. 시야 종횡비와 화소 종횡비가 달라 한 축에 여백이 생긴다는 뜻입니다.',
         });
       }

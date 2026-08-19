@@ -152,7 +152,8 @@ export function fovRect(fovW, fovH, { targetW, targetH, axis, note } = {}) {
 // 다만 각 구간 안에서는 비율을 지킨다 — 센서 쪽에서 f 는 b 에 대해 1/(1+m) 이다.
 export function opticalLayout({ wd, f, fovH, sensorH, m }) {
   const VB_W = 380;
-  const VB_H = 260;
+  // 라벨을 약어 대신 풀네임으로 쓰면서 폭·높이가 모두 늘었다. 아래 여백을 그만큼 잡는다.
+  const VB_H = 272;
   const axisY = 132;
   const sensorX = 52;
   const lensX = 156;
@@ -197,14 +198,16 @@ export function opticalLayout({ wd, f, fovH, sensorH, m }) {
     label(lensX, axisY + 50, '렌즈', 'd-label-sm'),
     label(objectX, axisY + objectHalf + 18, '대상', 'd-label-sm'),
 
-    // 상거리와 초점거리를 같은 쪽에 겹쳐 그려 f < b 관계가 보이게 한다.
-    dimH(sensorX, lensX, axisY - 76, `b  ${format(b, 2)} mm`),
-    dimH(focalX, lensX, axisY - 50, `f  ${format(f, 2)} mm`, { accent: true }),
+    // 상거리와 초점거리를 같은 쪽에 겹쳐 그려 초점거리 < 상거리 관계가 보이게 한다.
+    dimH(sensorX, lensX, axisY - 76, `상거리 Image Distance  ${format(b, 2)} mm`),
+    dimH(focalX, lensX, axisY - 50, `초점거리 Focal Length  ${format(f, 2)} mm`, { accent: true }),
 
-    dimH(lensX, objectX, axisY + objectHalf + 40, `WD  ${format(wd, 1)} mm`, { accent: true }),
+    dimH(lensX, objectX, axisY + objectHalf + 48, `작동거리 Working Distance  ${format(wd, 1)} mm`, {
+      accent: true,
+    }),
 
-    // 렌즈~센서 구간을 f 로 오해하기 쉬워 관계식을 그림 안에 적어 둔다.
-    label(VB_W / 2, VB_H - 26, '렌즈 → 센서 = 상거리 b = f × (1 + m)', 'd-label-sm'),
+    // 렌즈~센서 구간을 초점거리로 오해하기 쉬워 관계식을 그림 안에 적어 둔다.
+    label(VB_W / 2, VB_H - 28, '렌즈 → 센서 = 상거리 = 초점거리 × (1 + 배율)', 'd-label-sm'),
     label(VB_W / 2, VB_H - 10, `배율 ${format(m, 4)} ×  ·  개략도 — 좌우 축척이 다름`, 'd-label-sm'),
   ];
 

@@ -274,7 +274,9 @@ function renderCalculator(calcId, modeId) {
           f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null,
           f.optional ? el('span', { class: 'field-opt' }, ' 선택') : null
         ),
-        input
+        input,
+        // 이름만으로 헷갈리는 항목에 한 줄 설명을 붙인다.
+        f.hint ? el('span', { class: 'field-hint' }, f.hint) : null
       );
     })
   );
