@@ -1,116 +1,21 @@
-// 렌즈 대분류 계산기.
-// 모든 compute 는 순수 함수 — UI 를 참조하지 않으므로 단독 검증이 가능하다.
+// 렌즈 대분류 - 현장 계산기.
+// 장비를 고르고 조건을 확인할 때 쓰는 것들. 설계용 공식은 lens-design.js 에 있다.
 
-import { LAMBDA_UM, STANDARD_FOCAL_LENGTHS } from '../core/units.js';
-import { fovRect, opticalLayout, depthRange, pixelGrid } from '../core/diagram.js';
-
-// 센서 물리 크기(mm). 포맷 프리셋(1/2", 2/3" 등)보다 픽셀 기반 계산이 정확하다.
-const sensorSize = (wpx, hpx, pixelUm) => ({
-  w: (wpx * pixelUm) / 1000,
-  h: (hpx * pixelUm) / 1000,
-  diag: (Math.hypot(wpx, hpx) * pixelUm) / 1000,
-});
-
-// 대상을 가로·세로 모두 담으려면 두 축의 요구 배율 중 작은 쪽을 써야 한다.
-// 큰 쪽을 쓰면 반대 축이 시야를 벗어난다.
-function limitingMagnification(sensor, fovW, fovH) {
-  const mW = sensor.w / fovW;
-  const mH = sensor.h / fovH;
-  return mW <= mH ? { m: mW, axis: '가로' } : { m: mH, axis: '세로' };
-}
-
-// 피사계심도. 허용착란원 c 는 픽셀 크기의 배수로 잡는 것이 머신비전 관례다.
-function depthOfField(m, fNumber, cocUm) {
-  if (!(m > 0)) return { dof: null, focusDepthUm: null };
-  const dofUm = (2 * fNumber * cocUm * (1 + m)) / (m * m);
-  return { dof: dofUm / 1000, focusDepthUm: 2 * fNumber * cocUm };
-}
-
-// 회절 한계 스팟(에어리 디스크) 지름. 픽셀보다 커지면 조리개를 과하게 조인 것이다.
-const airyDiameterUm = (fNumber, m) => 2.44 * LAMBDA_UM * fNumber * (1 + m);
-
-function opticalWarnings(m, fNumber, pixelUm, imageCircle, sensorDiag) {
-  const warns = [];
-  const airy = airyDiameterUm(fNumber, m);
-  if (airy > pixelUm) {
-    warns.push({
-      level: 'warn',
-      text: '회절 한계 스팟 ' + airy.toFixed(2) + ' µm 가 픽셀 ' + pixelUm +
-        ' µm 보다 큽니다. F수를 낮추지 않으면 해상력이 픽셀이 아니라 회절에 묶입니다.',
-    });
-  }
-  if (imageCircle > 0 && sensorDiag && imageCircle < sensorDiag) {
-    warns.push({
-      level: 'danger',
-      text: '렌즈 이미지 서클 ' + imageCircle + ' mm 가 센서 대각 ' + sensorDiag.toFixed(2) +
-        ' mm 보다 작습니다. 모서리 비네팅이 발생합니다.',
-    });
-  }
-  return warns;
-}
-
-// 세 모드가 같은 도해를 쓴다. 배율이 정해지면 그릴 내용은 동일하기 때문이다.
-// 실제 시야와 검사 대상을 겹쳐 그려 어느 축이 제약이고 여백이 어디 남는지 보인다.
-function layoutDiagrams(v, o, { targetW, targetH } = {}) {
-  return [
-    opticalLayout({
-      wd: o.wd ?? v.wd,
-      f: o.f ?? v.f,
-      fovH: o.actualFovH ?? o.fovH,
-      sensorH: o.sensorH,
-      m: o.m,
-    }),
-    fovRect(o.actualFovW ?? o.fovW, o.actualFovH ?? o.fovH, {
-      targetW,
-      targetH,
-      axis: o._axis,
-    }),
-  ];
-}
-
-// 계산된 초점거리에 가장 가까운 표준 렌즈를 고르고, 그 렌즈를 실제로 썼을 때를 역산한다.
-function nearestStandard(f, sensor, wd) {
-  const pick = STANDARD_FOCAL_LENGTHS.reduce(
-    (best, cur) => (Math.abs(cur - f) < Math.abs(best - f) ? cur : best),
-    STANDARD_FOCAL_LENGTHS[0]
-  );
-  if (wd <= pick) return { f: pick, fovW: null, fovH: null };
-  const m = pick / (wd - pick);
-  return { f: pick, fovW: sensor.w / m, fovH: sensor.h / m };
-}
-
-// en 은 화면에 국문 라벨과 함께 표시되는 통용 영문 용어다.
-// 렌즈 스펙시트가 전부 영문이라 대조하며 쓰려면 둘 다 보여야 한다.
-const SENSOR_INPUTS = [
-  { key: 'wpx', label: '가로 화소수', en: 'Width', unit: 'px', profile: 'sensorWpx', min: 1, step: 1 },
-  { key: 'hpx', label: '세로 화소수', en: 'Height', unit: 'px', profile: 'sensorHpx', min: 1, step: 1 },
-  { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
-    min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치. 대상 위 분해능과 다릅니다' },
-  { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
-    hint: '렌즈 조리개값' },
-];
-
-const SHARED_OUTPUTS = [
-  { key: 'm', label: '배율', en: 'Magnification', unit: '×', digits: 4 },
-  { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', digits: 2 },
-  { key: 'dof', label: '피사계심도', en: 'DOF', unit: 'mm', digits: 2 },
-  { key: 'sensorW', label: '센서 가로', en: 'Sensor W', unit: 'mm', digits: 2 },
-  { key: 'sensorH', label: '센서 세로', en: 'Sensor H', unit: 'mm', digits: 2 },
-  { key: 'airy', label: '회절 스팟', en: 'Airy Disk', unit: 'µm', digits: 2 },
-];
-
-// 배율이 정해진 뒤의 공통 파생값. 세 모드가 같은 지표를 보여줘야 서로 비교가 된다.
-function derive(m, sensor, pixelUm, fNumber) {
-  const { dof } = depthOfField(m, fNumber, pixelUm * 2);
-  return {
-    m,
-    umPerPx: pixelUm / m,
-    dof,
-    sensorW: sensor.w,
-    sensorH: sensor.h,
-    airy: airyDiameterUm(fNumber, m),
-  };
-}
+import { depthRange, pixelGrid, fovRect } from '../core/diagram.js';
+import { LAMBDA_UM } from '../core/units.js';
+import {
+  sensorSize,
+  limitingMagnification,
+  depthOfField,
+  airyDiameterUm,
+  effectiveFNumber,
+  opticalWarnings,
+  nearestStandard,
+  SENSOR_INPUTS,
+  SHARED_OUTPUTS,
+  derive,
+  layoutDiagrams,
+} from './shared.js';
 
 export const lensCalculators = [
   {
@@ -373,6 +278,122 @@ export const lensCalculators = [
         warns.push({
           level: 'warn',
           text: '결함 판정 픽셀수가 3 미만입니다. 나이퀴스트 기준상 안정적인 검출을 보장하기 어렵습니다.',
+        });
+      }
+      return warns;
+    },
+  },
+
+  {
+    id: 'focus-depth',
+    category: 'lens',
+    name: '초점심도',
+    en: 'Depth of Focus',
+    summary: '센서가 앞뒤로 얼마나 벗어나도 초점이 유지되는지 — 마운트·플랜지 조정 여유입니다',
+    tags: ['초점심도', 'depth of focus', '플랜지', '마운트', '조립 공차', '센서측'],
+    related: ['dof', 'aperture'],
+    formula: '초점심도 = 2 × 유효F수 × 허용착란원,   피사계심도 = 초점심도 / 배율²',
+    inputs: [
+      { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0.0001, step: 0.001 },
+      { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
+        hint: '렌즈 조리개값' },
+      { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
+        min: 0.1, step: 0.1, hint: '카메라 스펙시트의 픽셀 피치' },
+      { key: 'cocMult', label: '착란원 배수', en: 'CoC ×Pixel', unit: '', default: 2, min: 0.5, step: 0.5,
+        hint: '허용 착란원을 센서 픽셀 크기의 몇 배로 볼지' },
+    ],
+    outputs: [
+      { key: 'focusDepth', label: '초점심도', en: 'Depth of Focus', unit: 'µm', digits: 1, primary: true },
+      { key: 'halfDepth', label: '편측 여유', en: 'Half', unit: 'µm', digits: 1 },
+      { key: 'effectiveN', label: '유효 F수', en: 'Effective F-number', unit: '', digits: 2 },
+      { key: 'coc', label: '허용 착란원', en: 'CoC', unit: 'µm', digits: 2 },
+      { key: 'dof', label: '대응 피사계심도', en: 'DOF', unit: 'mm', digits: 3 },
+    ],
+    compute(v) {
+      const coc = v.pixelUm * v.cocMult;
+      const { dof, focusDepthUm } = depthOfField(v.m, v.fNumber, coc);
+      return {
+        focusDepth: focusDepthUm,
+        halfDepth: focusDepthUm / 2,
+        effectiveN: effectiveFNumber(v.fNumber, v.m),
+        coc,
+        dof,
+      };
+    },
+    warn(v, o) {
+      const warns = [];
+      if (o.focusDepth < 20) {
+        warns.push({
+          level: 'warn',
+          text: `초점심도가 ${o.focusDepth.toFixed(1)} µm 로 매우 얕습니다. 마운트 공차와 온도 변화만으로도 초점이 벗어날 수 있습니다.`,
+        });
+      }
+      warns.push({
+        level: 'info',
+        text: '센서측 값입니다. 대상이 앞뒤로 움직일 때 허용되는 범위는 피사계심도를 보세요.',
+      });
+      return warns;
+    },
+  },
+
+  {
+    id: 'aperture',
+    category: 'lens',
+    name: '유효 F수 · 회절 한계',
+    en: 'Effective F-number',
+    summary: '조리개를 조일수록 심도는 깊어지지만 회절로 해상력이 떨어집니다. 그 경계를 찾습니다',
+    tags: ['F수', '유효 F수', '회절', '에어리', 'airy', 'diffraction', 'f-number', '조리개', 'NA'],
+    related: ['dof', 'resolution'],
+    formula: '유효F수 = F수 × (1 + 배율),   에어리 지름 = 2.44 × 파장 × 유효F수',
+    inputs: [
+      { key: 'fNumber', label: 'F수', en: 'F-number', unit: '', profile: 'fNumber', min: 0.7, step: 0.1,
+        hint: '렌즈에 표시된 조리개값' },
+      { key: 'm', label: '배율', en: 'Magnification', unit: '×', default: 0.192, min: 0, step: 0.001 },
+      { key: 'pixelUm', label: '센서 픽셀 크기', en: 'Pixel Pitch', unit: 'µm', profile: 'pixelSize',
+        min: 0.1, step: 0.1 },
+      { key: 'lambdaNm', label: '파장', en: 'Wavelength', unit: 'nm', default: LAMBDA_UM * 1000, min: 200, step: 10,
+        hint: '가시광 백색광은 550 nm 로 봅니다' },
+    ],
+    outputs: [
+      { key: 'effectiveN', label: '유효 F수', en: 'Effective F-number', unit: '', digits: 2, primary: true },
+      { key: 'airy', label: '에어리 지름', en: 'Airy Disk', unit: 'µm', digits: 2, primary: true },
+      { key: 'airyPerPixel', label: '픽셀 대비', en: 'Airy / Pixel', unit: '×', digits: 2 },
+      { key: 'cutoff', label: '회절 차단 주파수', en: 'Cutoff', unit: 'lp/mm', digits: 0 },
+      { key: 'na', label: '상측 개구수', en: 'Image-side NA', unit: '', digits: 4 },
+      { key: 'lightLoss', label: '광량 손실', en: 'Light Loss', unit: 'stop', digits: 2 },
+    ],
+    compute(v) {
+      const lambdaUm = v.lambdaNm / 1000;
+      const effectiveN = effectiveFNumber(v.fNumber, v.m);
+      const airy = airyDiameterUm(v.fNumber, v.m, lambdaUm);
+      return {
+        effectiveN,
+        airy,
+        airyPerPixel: airy / v.pixelUm,
+        // 비간섭 결상의 차단 주파수. λ 를 mm 로 환산해 lp/mm 로 낸다.
+        cutoff: 1 / ((lambdaUm / 1000) * effectiveN),
+        na: 1 / (2 * effectiveN),
+        // 유효 F수가 커진 만큼 어두워진다. 스톱은 밑이 2 인 로그.
+        lightLoss: 2 * Math.log2(1 + v.m),
+      };
+    },
+    warn(v, o) {
+      const warns = [];
+      if (o.airyPerPixel > 1) {
+        warns.push({
+          level: 'warn',
+          text: `에어리 지름이 픽셀의 ${o.airyPerPixel.toFixed(2)} 배입니다. 조리개를 더 조여도 해상력만 떨어집니다.`,
+        });
+      } else if (o.airyPerPixel < 0.5) {
+        warns.push({
+          level: 'info',
+          text: `에어리 지름이 픽셀의 ${o.airyPerPixel.toFixed(2)} 배입니다. 회절 여유가 있으니 심도가 부족하면 더 조여도 됩니다.`,
+        });
+      }
+      if (o.lightLoss > 0.5) {
+        warns.push({
+          level: 'info',
+          text: `배율 때문에 ${o.lightLoss.toFixed(2)} 스톱 어두워집니다. 노출이나 조명을 그만큼 보정해야 합니다.`,
         });
       }
       return warns;

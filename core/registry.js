@@ -3,6 +3,7 @@
 // 홈·대분류·검색·즐겨찾기·상세 화면이 모두 자동으로 따라온다.
 
 import { lensCalculators } from '../calc/lens.js';
+import { lensDesignCalculators } from '../calc/lens-design.js';
 
 export const CATEGORIES = [
   { id: 'lens', name: '렌즈', en: 'Lens', icon: '◎', desc: 'Lens Selection · DOF · F-number · Diffraction' },
@@ -27,7 +28,7 @@ function normalize(def) {
   return { ...rest, modes: [mode] };
 }
 
-const RAW = [...lensCalculators];
+const RAW = [...lensCalculators, ...lensDesignCalculators];
 
 export const CALCULATORS = RAW.map(normalize);
 

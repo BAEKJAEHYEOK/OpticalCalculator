@@ -251,6 +251,110 @@ export function depthRange({ dof, nearHalf, farHalf, unit = 'mm' }) {
   return frame('피사계심도 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
 }
 
+/* ---------- 이미지 서클과 센서 ---------- */
+
+// 렌즈가 만드는 상의 원과 센서 사각형을 겹쳐 그린다.
+// 사각형의 대각이 원을 벗어나면 모서리가 어두워진다.
+export function imageCircleView({ circleDia, sensorW, sensorH, diag }) {
+  const VB_W = 320;
+  const VB_H = 250;
+  const cx = VB_W / 2;
+  const cy = 118;
+
+  // 원과 사각형은 같은 축척으로 그려야 여유가 눈에 보인다.
+  const outer = Math.max(circleDia, diag);
+  const scale = 96 / (outer / 2);
+  const r = (circleDia / 2) * scale;
+  const w = sensorW * scale;
+  const h = sensorH * scale;
+  const covered = circleDia >= diag;
+
+  return frame(
+    '이미지 서클 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('circle', { cx, cy, r, class: 'd-circle' }),
+    s('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, class: covered ? 'd-fov' : 'd-fov-bad' }),
+    // 센서 대각. 이 선이 원을 뚫고 나가면 비네팅이다.
+    s('line', { x1: cx - w / 2, y1: cy - h / 2, x2: cx + w / 2, y2: cy + h / 2, class: 'd-limit' }),
+    label(cx, cy - r - 10, `이미지 서클 Image Circle  ⌀${format(circleDia, 1)} mm`, 'd-label'),
+    label(cx, VB_H - 40, `센서 ${format(sensorW, 2)} × ${format(sensorH, 2)} mm`, 'd-label-sm'),
+    label(cx, VB_H - 24, `센서 대각 Diagonal  ${format(diag, 2)} mm`, 'd-label-sm'),
+    label(
+      cx,
+      VB_H - 8,
+      covered
+        ? `여유 ${format(circleDia - diag, 2)} mm — 모서리까지 덮습니다`
+        : `${format(diag - circleDia, 2)} mm 모자랍니다 — 모서리 비네팅`,
+      'd-label-sm'
+    )
+  );
+}
+
+/* ---------- 박막렌즈 결상 ---------- */
+
+// 교과서 배치를 따른다 — 대상이 왼쪽, 렌즈가 가운데, 상이 오른쪽.
+// 머신비전 배치도(opticalLayout)와 좌우가 반대인 점에 주의.
+export function thinLensView({ f, a, b, m, virtual }) {
+  const VB_W = 380;
+  const VB_H = 215;
+  const axisY = 96;
+  const lensX = 190;
+
+  // 물체거리와 상거리의 비율만 반영하고, 한쪽이 뭉개지지 않도록 폭을 제한한다.
+  const maxArm = 128;
+  const scale = Math.min(maxArm / a, maxArm / Math.abs(b));
+  const aPx = Math.max(26, a * scale);
+  const bPx = Math.max(26, Math.abs(b) * scale);
+
+  const objectX = lensX - aPx;
+  const imageX = virtual ? lensX - bPx : lensX + bPx;
+
+  const objHalf = 30;
+  const imgHalf = Math.max(8, Math.min(46, objHalf * Math.abs(m)));
+
+  return frame(
+    '박막렌즈 결상 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('line', { x1: 14, y1: axisY, x2: VB_W - 14, y2: axisY, class: 'd-axis' }),
+    s('ellipse', { cx: lensX, cy: axisY, rx: 7, ry: 40, class: 'd-lens' }),
+
+    // 주광선. 실상이면 렌즈 중심을 지나 반대편에 거꾸로 맺힌다.
+    s('polyline', {
+      points: `${objectX},${axisY - objHalf} ${lensX},${axisY} ${imageX},${axisY + (virtual ? -imgHalf : imgHalf)}`,
+      class: 'd-ray',
+      fill: 'none',
+    }),
+
+    s('rect', { x: objectX - 4, y: axisY - objHalf, width: 8, height: objHalf, class: 'd-object' }),
+    s('rect', {
+      x: imageX - 4,
+      y: virtual ? axisY - imgHalf : axisY,
+      width: 8,
+      height: imgHalf,
+      class: virtual ? 'd-image-virtual' : 'd-image',
+    }),
+
+    label(objectX, axisY - objHalf - 8, '대상', 'd-label-sm'),
+    label(imageX, virtual ? axisY - imgHalf - 8 : axisY + imgHalf + 16, virtual ? '허상' : '상', 'd-label-sm'),
+    label(lensX, axisY + 52, '렌즈', 'd-label-sm'),
+
+    dimH(objectX, lensX, axisY - 62, `물체거리 Object Distance  ${format(a, 2)} mm`),
+    dimH(
+      Math.min(lensX, imageX),
+      Math.max(lensX, imageX),
+      axisY + 74,
+      `상거리 Image Distance  ${format(b, 2)} mm`,
+      { accent: true, below: true }
+    ),
+    label(
+      VB_W / 2,
+      VB_H - 8,
+      `배율 ${format(m, 3)} ×  ·  ${virtual ? '허상 — 상은 대상과 같은 쪽에 맺힙니다' : '실상 — 상은 거꾸로 맺힙니다'}`,
+      'd-label-sm'
+    )
+  );
+}
+
 /* ---------- 픽셀 격자와 검출 한계 ---------- */
 
 // 해상도(µm/px)가 실제로 무엇인지 — 픽셀 한 칸이 대상에서 몇 µm 인지 — 를 보여주고,

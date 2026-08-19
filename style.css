@@ -295,6 +295,10 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .d-lens { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
 
 .d-fov { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
+.d-fov-bad { fill: var(--danger-bg); stroke: var(--danger); stroke-width: 1.5; }
+.d-circle { fill: var(--surface-alt); stroke: var(--info); stroke-width: 1.5; }
+.d-image { fill: var(--accent); }
+.d-image-virtual { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .d-target { fill: none; stroke: var(--info); stroke-width: 1.5; stroke-dasharray: 5 3; }
 
 .d-band { fill: var(--accent-bg); stroke: none; }

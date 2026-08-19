@@ -20,7 +20,9 @@
 <main><pre id="out"></pre></main>
 
 <script type="module">
-import { lensCalculators } from './calc/lens.js';
+// 레지스트리를 거친 목록을 쓴다. 모드 없는 계산기도 단일 모드로 정규화되므로
+// 항상 modes 로 접근할 수 있고, 정규화가 필드를 빠뜨리지 않는지도 함께 검증된다.
+import { CALCULATORS } from './core/registry.js';
 
 const out = document.getElementById('out');
 let failed = 0;
@@ -40,8 +42,10 @@ function check(label, actual, expected, tol = 0.01) {
     `${ok ? 'PASS' : 'FAIL'}  ${label}: ${Number(actual).toFixed(4)}  (기대 ${Number(expected).toFixed(4)})`);
 }
 
-const byId = (id) => lensCalculators.find((c) => c.id === id);
-const modeOf = (id, mid) => byId(id).modes.find((m) => m.id === mid);
+const ALL = CALCULATORS;
+const byId = (id) => ALL.find((c) => c.id === id);
+const modeOf = (id, mid) =>
+  mid ? byId(id).modes.find((m) => m.id === mid) : byId(id).modes[0];
 
 const cam = { wpx: 5120, hpx: 5120, pixelUm: 4.5, fNumber: 5.6, imageCircle: 0 };
 
@@ -68,23 +72,25 @@ check('작동거리 복원', owd.wd, 300);
 
 head('[피사계심도]  m 0.192, F5.6, 픽셀 4.5 µm, 착란원 ×2');
 const vd = { m: 0.192, fNumber: 5.6, pixelUm: 4.5, cocMult: 2 };
-const od = byId('dof').compute(vd);
+const od = modeOf('dof').compute(vd);
 check('허용 착란원 µm', od.coc, 9, 1e-9);
 check('피사계심도 mm', od.dof, (2 * 5.6 * 9 * 1.192) / (0.192 * 0.192) / 1000);
-check('초점심도 µm', od.focusDepth, 2 * 5.6 * 9, 1e-9);
+// 초점심도는 유효 F수 기준이다. 2·N·c 로 두면 (1 + 배율) 만큼 작게 나온다.
+check('초점심도 µm', od.focusDepth, 2 * 5.6 * 1.192 * 9, 1e-9);
+check('초점심도 = 피사계심도 × 배율²', od.dof * 0.192 * 0.192 * 1000, od.focusDepth, 1e-6);
 check('회절 스팟 µm', od.airy, 2.44 * 0.55 * 5.6 * 1.192);
-byId('dof').warn(vd, od).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+modeOf('dof').warn(vd, od).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
 
 head('[교차 검증]  렌즈 선정이 내놓은 심도와 DOF 계산기 결과가 같아야 한다');
 check('심도 일치', of_.dof, od.dof, 1e-9);
 
 head('[해상도 · 검출 한계]  FOV 120×90, 5120×5120 px, 판정 3 px');
 const vr = { fovW: 120, fovH: 90, wpx: 5120, hpx: 5120, minPixels: 3 };
-const or_ = byId('resolution').compute(vr);
+const or_ = modeOf('resolution').compute(vr);
 check('가로 µm/px', or_.umPerPxW, (120 * 1000) / 5120);
 check('세로 µm/px', or_.umPerPxH, (90 * 1000) / 5120);
 check('검출 한계 µm', or_.detectLimit, ((120 * 1000) / 5120) * 3);
-byId('resolution').warn(vr, or_).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
+modeOf('resolution').warn(vr, or_).forEach((w) => line('note', `      · ${w.level} — ${w.text}`));
 
 head('[경계 조건]  WD < f 는 결상 불가 조건이므로 위험 경고가 나와야 한다');
 const bad = modeOf('lens-select', 'fov');
@@ -93,6 +99,103 @@ const wb = bad.warn(vb, bad.compute(vb));
 const hasDanger = wb.some((w) => w.level === 'danger');
 if (!hasDanger) failed++;
 line(hasDanger ? 'pass' : 'fail', `${hasDanger ? 'PASS' : 'FAIL'}  WD < f 위험 경고 발생`);
+
+head('[초점심도]  센서측과 물체측은 배율² 로 이어져 있어야 한다');
+const vfd = { m: 0.192, fNumber: 5.6, pixelUm: 4.5, cocMult: 2 };
+const ofd = modeOf('focus-depth').compute(vfd);
+check('유효 F수', ofd.effectiveN, 5.6 * 1.192, 1e-9);
+check('초점심도 µm', ofd.focusDepth, 2 * 5.6 * 1.192 * 9, 1e-9);
+check('초점심도 = 피사계심도 × 배율²', ofd.dof * 0.192 * 0.192 * 1000, ofd.focusDepth, 1e-6);
+check('DOF 계산기와 일치', ofd.dof, modeOf('dof').compute(vfd).dof, 1e-9);
+
+head('[유효 F수 · 회절]  F5.6, 배율 0.192, 550 nm');
+const vap = { fNumber: 5.6, m: 0.192, pixelUm: 4.5, lambdaNm: 550 };
+const oap = modeOf('aperture').compute(vap);
+check('유효 F수', oap.effectiveN, 6.6752, 1e-4);
+check('에어리 지름 µm', oap.airy, 2.44 * 0.55 * 6.6752, 1e-4);
+check('차단 주파수 lp/mm', oap.cutoff, 1 / (0.00055 * 6.6752), 0.5);
+check('상측 NA', oap.na, 1 / (2 * 6.6752), 1e-6);
+check('배율 0 이면 유효 F수 = F수', modeOf('aperture').compute({ ...vap, m: 0 }).effectiveN, 5.6, 1e-9);
+
+head('[박막렌즈 결상]  f 50, 물체거리 300');
+const otl = modeOf('thin-lens', 'image').compute({ f: 50, a: 300 });
+check('상거리', otl.b, (300 * 50) / 250, 1e-9);
+check('배율', otl.m, 60 / 300, 1e-9);
+check('1/a + 1/b = 1/f', 1 / 300 + 1 / otl.b, 1 / 50, 1e-12);
+
+head('[박막렌즈 · 등배]  물체거리 2f 면 상거리도 2f, 배율 1');
+const oeq = modeOf('thin-lens', 'image').compute({ f: 50, a: 100 });
+check('상거리', oeq.b, 100, 1e-9);
+check('배율', oeq.m, 1, 1e-12);
+
+head('[박막렌즈 · 허상]  물체거리 < f 면 상거리가 음수여야 한다');
+const ovi = modeOf('thin-lens', 'image').compute({ f: 50, a: 25 });
+check('상거리 음수', ovi.b, -50, 1e-9);
+line(ovi._virtual ? 'pass' : 'fail', `${ovi._virtual ? 'PASS' : 'FAIL'}  허상으로 판정`);
+if (!ovi._virtual) failed++;
+
+head('[박막렌즈 · 역방향]  상거리 모드로 구한 f 가 원래 값이어야 한다');
+check('초점거리 복원', modeOf('thin-lens', 'focal').compute({ a: 300, b: otl.b }).f, 50, 1e-9);
+
+head('[이미지 서클]  5120×5120, 4.5 µm → 대각 32.58 mm');
+const oic = modeOf('image-circle').compute({ wpx: 5120, hpx: 5120, pixelUm: 4.5, circleDia: 35 });
+check('센서 대각', oic.diag, (Math.hypot(5120, 5120) * 4.5) / 1000, 1e-9);
+check('여유', oic.margin, 35 - oic.diag, 1e-9);
+const icMode = modeOf('image-circle');
+const icSmall = { wpx: 5120, hpx: 5120, pixelUm: 4.5, circleDia: 20 };
+const wic = icMode.warn(icSmall, icMode.compute(icSmall));
+line(wic.some((w) => w.level === 'danger') ? 'pass' : 'fail', `${wic.some((w) => w.level === 'danger') ? 'PASS' : 'FAIL'}  서클이 작으면 비네팅 경고`);
+if (!wic.some((w) => w.level === 'danger')) failed++;
+
+head('[익스텐션 튜브]  f 50 에 25 mm 튜브 → 배율 0.5 증가');
+const oet = modeOf('extension-tube').compute({ f: 50, tube: 25, baseM: 0, fNumber: 5.6 });
+check('추가 배율', oet.addedM, 0.5, 1e-12);
+check('상거리', oet.imageDist, 50 * 1.5, 1e-9);
+check('물체거리', oet.objectDist, (50 * 1.5) / 0.5, 1e-9);
+check('광량 손실 stop', oet.lightLoss, 2 * Math.log2(1.5), 1e-9);
+// 튜브 길이가 초점거리와 같으면 등배가 되고, 물체거리와 상거리가 모두 2f 다.
+const oet1 = modeOf('extension-tube').compute({ f: 50, tube: 50, baseM: 0, fNumber: 5.6 });
+check('등배에서 물체거리 = 2f', oet1.objectDist, 100, 1e-9);
+check('등배에서 광량 손실 2 stop', oet1.lightLoss, 2, 1e-12);
+
+head('[두 렌즈 조합]  밀착이면 굴절력이 단순히 더해진다');
+const ocb = modeOf('lens-combination').compute({ f1: 100, f2: 200, d: 0 });
+check('합성 초점거리', ocb.f, 1 / (1 / 100 + 1 / 200), 1e-9);
+check('밀착이면 BFD = f', ocb.bfd, ocb.f, 1e-9);
+// 간격이 f1 + f2 이면 무초점(afocal) 이라 굴절력이 0 이 된다.
+const oaf = modeOf('lens-combination').compute({ f1: 100, f2: 200, d: 300 });
+check('무초점 조합의 굴절력', oaf.power, 0, 1e-9);
+
+head('[렌즈메이커]  BK7 양볼록, R 51.5 / −51.5');
+const olm = modeOf('lens-maker').compute({ n: 1.5168, r1: 51.5, r2: -51.5, thickness: 0 });
+check('초점거리', olm.f, 1 / ((1.5168 - 1) * (1 / 51.5 + 1 / 51.5)), 1e-9);
+check('박막 근사와 동일', olm.thicknessEffect, 0, 1e-12);
+// 평볼록: 뒷면이 평면(R=0 으로 입력)이면 f = R / (n − 1)
+const opl = modeOf('lens-maker').compute({ n: 1.5, r1: 50, r2: 0, thickness: 0 });
+check('평볼록 초점거리', opl.f, 50 / 0.5, 1e-9);
+
+head('[레지스트리]  모든 계산기가 기본값만으로 계산·도해까지 통과해야 한다');
+let broken = 0;
+for (const calc of ALL) {
+  const modes = calc.modes;
+  for (const mode of modes) {
+    const values = {};
+    for (const f of mode.inputs) values[f.key] = f.default ?? 1;
+    try {
+      const out = mode.compute(values);
+      if (mode.warn) mode.warn(values, out);
+      if (mode.diagram) mode.diagram(values, out);
+      for (const o of mode.outputs) {
+        if (out[o.key] === undefined) throw new Error(`출력 ${o.key} 없음`);
+      }
+    } catch (err) {
+      broken++;
+      failed++;
+      line('fail', `FAIL  ${calc.id}/${mode.id}: ${err.message}`);
+    }
+  }
+}
+line(broken ? 'fail' : 'pass', `${broken ? 'FAIL' : 'PASS'}  계산기 ${ALL.length} 개 / 모드 ${ALL.reduce((n, c) => n + (c.modes ? c.modes.length : 1), 0)} 개 점검`);
 
 head(failed === 0 ? '전체 통과' : `실패 ${failed} 건`);
 document.title = failed === 0 ? '검증 통과' : `검증 실패 ${failed}`;
