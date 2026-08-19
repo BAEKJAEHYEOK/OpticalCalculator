@@ -12,11 +12,19 @@ export const CATEGORIES = [
   { id: 'wave', name: '파동 · 재료', en: 'Wave · Material', icon: '∿', desc: "Snell's Law · Critical Angle · Index · Grating" },
 ];
 
+// 모드에 속하는 필드. 새 필드를 추가하면 여기에도 넣어야 단일 모드 계산기에 전달된다.
+const MODE_KEYS = ['formula', 'inputs', 'outputs', 'compute', 'warn', 'diagram'];
+
 // 모드가 없는 계산기는 단일 모드로 감싼다. 렌더러는 항상 modes 만 보면 된다.
 function normalize(def) {
   if (def.modes) return def;
-  const { inputs, outputs, compute, warn, formula, ...rest } = def;
-  return { ...rest, modes: [{ id: 'default', name: '', formula, inputs, outputs, compute, warn }] };
+  const mode = { id: 'default', name: '' };
+  const rest = {};
+  for (const [key, value] of Object.entries(def)) {
+    if (MODE_KEYS.includes(key)) mode[key] = value;
+    else rest[key] = value;
+  }
+  return { ...rest, modes: [mode] };
 }
 
 const RAW = [...lensCalculators];

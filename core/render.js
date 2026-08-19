@@ -204,6 +204,7 @@ function renderCalculator(calcId, modeId) {
   const values = initialValues(calc.id, mode);
 
   const outputBox = el('div', { class: 'output-grid' });
+  const diagramBox = el('div', { class: 'diagram-box' });
   const warnBox = el('div', { class: 'warn-box' });
 
   function recompute() {
@@ -229,6 +230,15 @@ function renderCalculator(calcId, modeId) {
         )
       )
     );
+
+    // 도해는 입력이 잘못돼도 화면 전체를 죽이면 안 된다. 못 그리면 비워 둔다.
+    let figures = [];
+    try {
+      figures = mode.diagram ? mode.diagram(values, out) || [] : [];
+    } catch {
+      figures = [];
+    }
+    diagramBox.replaceChildren(...figures.filter(Boolean));
 
     const warns = mode.warn ? mode.warn(values, out) || [] : [];
     warnBox.replaceChildren(
@@ -355,6 +365,7 @@ function renderCalculator(calcId, modeId) {
         'section',
         {},
         outputBox,
+        diagramBox,
         warnBox,
         mode.formula ? el('div', { class: 'formula' }, mode.formula) : null,
         related.length

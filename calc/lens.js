@@ -2,6 +2,7 @@
 // 모든 compute 는 순수 함수 — UI 를 참조하지 않으므로 단독 검증이 가능하다.
 
 import { LAMBDA_UM, STANDARD_FOCAL_LENGTHS } from '../core/units.js';
+import { fovRect, opticalLayout, depthRange, pixelGrid } from '../core/diagram.js';
 
 // 센서 물리 크기(mm). 포맷 프리셋(1/2", 2/3" 등)보다 픽셀 기반 계산이 정확하다.
 const sensorSize = (wpx, hpx, pixelUm) => ({
@@ -46,6 +47,25 @@ function opticalWarnings(m, fNumber, pixelUm, imageCircle, sensorDiag) {
     });
   }
   return warns;
+}
+
+// 세 모드가 같은 도해를 쓴다. 배율이 정해지면 그릴 내용은 동일하기 때문이다.
+// 실제 시야와 검사 대상을 겹쳐 그려 어느 축이 제약이고 여백이 어디 남는지 보인다.
+function layoutDiagrams(v, o, { targetW, targetH } = {}) {
+  return [
+    opticalLayout({
+      wd: o.wd ?? v.wd,
+      f: o.f ?? v.f,
+      fovH: o.actualFovH ?? o.fovH,
+      sensorH: o.sensorH,
+      m: o.m,
+    }),
+    fovRect(o.actualFovW ?? o.fovW, o.actualFovH ?? o.fovH, {
+      targetW,
+      targetH,
+      axis: o._axis,
+    }),
+  ];
 }
 
 // 계산된 초점거리에 가장 가까운 표준 렌즈를 고르고, 그 렌즈를 실제로 썼을 때를 역산한다.
@@ -130,6 +150,9 @@ export const lensCalculators = [
             _sensor: sensor,
           };
         },
+        diagram(v, o) {
+          return layoutDiagrams(v, o, { targetW: v.fovW, targetH: v.fovH });
+        },
         warn(v, o) {
           const warns = opticalWarnings(o.m, v.fNumber, v.pixelUm, v.imageCircle, o._sensor.diag);
           const std = nearestStandard(o.f, o._sensor, v.wd);
@@ -168,6 +191,10 @@ export const lensCalculators = [
             fovH: sensor.h / m,
             _sensor: sensor,
           };
+        },
+        diagram(v, o) {
+          // 이 모드는 시야가 결과이므로 겹쳐 그릴 대상 사각형이 없다.
+          return v.wd > v.f ? layoutDiagrams(v, o) : [];
         },
         warn(v, o) {
           if (v.wd <= v.f) {
@@ -208,6 +235,9 @@ export const lensCalculators = [
             _axis: axis,
             _sensor: sensor,
           };
+        },
+        diagram(v, o) {
+          return layoutDiagrams(v, o, { targetW: v.fovW, targetH: v.fovH });
         },
         warn(v, o) {
           const warns = opticalWarnings(o.m, v.fNumber, v.pixelUm, v.imageCircle, o._sensor.diag);
@@ -253,6 +283,9 @@ export const lensCalculators = [
         focusDepth: focusDepthUm,
         airy: airyDiameterUm(v.fNumber, v.m),
       };
+    },
+    diagram(v, o) {
+      return [depthRange({ dof: o.dof, nearHalf: o.nearHalf, farHalf: o.farHalf })];
     },
     warn(v, o) {
       const warns = [];
@@ -309,6 +342,17 @@ export const lensCalculators = [
         aspectSensor: v.wpx / v.hpx,
         aspectFov: v.fovW / v.fovH,
       };
+    },
+    diagram(v, o) {
+      return [
+        fovRect(v.fovW, v.fovH),
+        pixelGrid({
+          // 두 축 중 나쁜 쪽이 실제 검출 성능을 결정한다.
+          umPerPx: Math.max(o.umPerPxW, o.umPerPxH),
+          minPixels: v.minPixels,
+          detectLimit: o.detectLimit,
+        }),
+      ];
     },
     warn(v, o) {
       const warns = [];

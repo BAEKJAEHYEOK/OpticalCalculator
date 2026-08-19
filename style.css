@@ -264,6 +264,46 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   overflow-x: auto;
 }
 
+/* 도해. 색은 color 로 넘긴다 — SVG marker 가 currentColor 를 통해 받아간다. */
+.diagram-box {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+.diagram {
+  width: 100%;
+  height: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  overflow: visible;
+}
+
+.d-axis { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 5 4; }
+.d-ray { stroke: var(--accent); stroke-width: 1.2; opacity: 0.75; }
+.d-sensor { fill: var(--text-2); }
+.d-object { fill: var(--info); }
+.d-lens { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
+
+.d-fov { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
+.d-target { fill: none; stroke: var(--info); stroke-width: 1.5; stroke-dasharray: 5 3; }
+
+.d-band { fill: var(--accent-bg); stroke: none; }
+.d-focus { stroke: var(--accent); stroke-width: 2; }
+.d-limit { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.d-px { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.d-px-on { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1; }
+
+.d-dim { color: var(--text-3); stroke: currentColor; stroke-width: 1; fill: none; }
+.d-dim.d-accent { color: var(--accent); }
+
+.d-label { fill: var(--text-2); font-size: 11px; stroke: none; }
+.d-label.d-accent-fill { fill: var(--accent); font-weight: 600; }
+.d-label-sm { fill: var(--text-3); font-size: 10px; stroke: none; }
+
 .related { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .related-label { font-size: 12px; color: var(--text-3); margin-right: 2px; }
 .chip {
