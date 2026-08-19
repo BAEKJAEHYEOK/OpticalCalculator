@@ -1,6 +1,6 @@
 // 오프라인 캐시. 현장·이동 중 네트워크 없이도 계산기가 열려야 한다.
 // 버전을 올리면 이전 캐시를 비우고 새로 받는다.
-const CACHE = 'optical-calc-v14';
+const CACHE = 'optical-calc-v15';
 
 const ASSETS = [
   './',

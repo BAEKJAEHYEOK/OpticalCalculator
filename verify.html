@@ -411,6 +411,59 @@ line(wfast.some((w) => w.level === 'danger') ? 'pass' : 'fail',
   `${wfast.some((w) => w.level === 'danger') ? 'PASS' : 'FAIL'}  주기 < 가드 타임이면 위험 경고`);
 if (!wfast.some((w) => w.level === 'danger')) failed++;
 
+head('[용어 사전]  중복·끊긴 링크가 없어야 하고 라벨을 충분히 덮어야 한다');
+const glo = await import('./core/glossary.js');
+const termIds = glo.TERMS.map((t) => t.id);
+const dupIds = [...new Set(termIds.filter((x, i) => termIds.indexOf(x) !== i))];
+line(dupIds.length ? 'fail' : 'pass', `${dupIds.length ? 'FAIL' : 'PASS'}  id 중복 없음${dupIds.length ? ': ' + dupIds.join(', ') : ''}`);
+if (dupIds.length) failed++;
+
+const brokenLinks = [];
+for (const t of glo.TERMS) {
+  for (const r of t.related || []) if (!glo.getTerm(r)) brokenLinks.push(`${t.id} → ${r}`);
+  if (t.calc && !byId(t.calc)) brokenLinks.push(`${t.id} → 계산기 ${t.calc}`);
+}
+line(brokenLinks.length ? 'fail' : 'pass', `${brokenLinks.length ? 'FAIL' : 'PASS'}  관련 용어·계산기 링크 실재${brokenLinks.length ? ': ' + brokenLinks.join(', ') : ''}`);
+if (brokenLinks.length) failed++;
+
+// 뜻풀이가 비어 있으면 눌러도 볼 것이 없다.
+const emptyText = glo.TERMS.filter((t) => !t.short || !t.body || !t.en);
+line(emptyText.length ? 'fail' : 'pass', `${emptyText.length ? 'FAIL' : 'PASS'}  모든 용어에 short·body·en 있음${emptyText.length ? ': ' + emptyText.map((t) => t.id).join(', ') : ''}`);
+if (emptyText.length) failed++;
+
+// 라벨을 얼마나 덮는지. 남는 것은 대개 "기준 거리" 같은 일상어라 100 % 를 목표로 하지 않는다.
+let labelTotal = 0;
+let labelCovered = 0;
+const notCovered = [];
+for (const calc of ALL) {
+  for (const mode of calc.modes) {
+    for (const f of [...mode.inputs, ...mode.outputs]) {
+      labelTotal++;
+      if (glo.lookup(f.label) || glo.annotate(f.label, () => {})) labelCovered++;
+      else notCovered.push(f.label);
+    }
+  }
+}
+const pct = (labelCovered / labelTotal) * 100;
+check('라벨 커버리지 %', pct, 80, 100);
+line('note', `      덮은 라벨 ${labelCovered} / ${labelTotal}`);
+line('note', `      남은 표현 ${[...new Set(notCovered)].length}개 — 일상어는 굳이 등재하지 않는다`);
+
+// 용어 표기가 실제 화면 어딘가에 쓰이는지. 안 쓰이면 밑줄이 생길 자리가 없다.
+// 계산기 이름·설명도 포함한다. "비네팅" 처럼 계산기 이름으로만 등장하는 용어가 있다.
+const allLabels = ALL.flatMap((c) => [
+  c.name,
+  c.summary,
+  ...(c.tags || []),
+  ...c.modes.flatMap((m) => [
+    ...m.inputs.map((f) => f.label),
+    ...m.outputs.map((o) => o.label),
+    ...(Array.isArray(m.formula) ? m.formula : [m.formula]).filter(Boolean),
+  ]),
+]).join(' | ');
+const orphan = glo.TERMS.filter((t) => ![t.term, ...(t.aliases || [])].some((k) => allLabels.includes(k)));
+line('note', `      화면에 표기가 없는 용어 ${orphan.length}개${orphan.length ? ': ' + orphan.map((t) => t.term).join(', ') : ''}`);
+
 head('[레지스트리]  모든 계산기가 기본값만으로 계산·도해까지 통과해야 한다');
 let broken = 0;
 for (const calc of ALL) {
