@@ -672,6 +672,12 @@ export const TERMS = [
     calc: 'encoder-resolution', related: ['encoder-resolution', 'ppr', 'multiplier'],
   },
   {
+    id: 'pulse-position', term: '펄스 위치 값', en: 'Absolute Position', category: 'encoder',
+    short: '컨트롤러가 세고 있는 엔코더 펄스의 누적 위치.',
+    body: '이동 전후로 이 값을 읽어 차이를 내면 그 구간에서 몇 펄스가 늘었는지 알 수 있습니다. 보통 초기화 명령으로 0 을 만든 뒤 이동시키고 다시 읽습니다. 이동한 실제 거리를 이 변화량으로 나누면 엔코더 분해능이 나옵니다.',
+    calc: 'encoder-resolution', related: ['encoder-resolution', 'ppr', 'multiplier'],
+  },
+  {
     id: 'pixels-on-defect', term: '결함 판정 픽셀수', en: 'Pixels on Defect', category: 'camera',
     short: '결함 하나를 몇 픽셀로 잡아야 판정할지 정하는 기준.',
     body: '1 픽셀에 걸치는 결함은 잡음과 구분되지 않습니다. 나이퀴스트 기준으로 최소 2 픽셀, 안정적인 판정에는 3~5 픽셀을 씁니다. 이 값에 대상 분해능을 곱한 것이 검출 한계입니다.',

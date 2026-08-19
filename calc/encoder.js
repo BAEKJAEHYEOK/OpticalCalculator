@@ -65,6 +65,83 @@ export const encoderCalculators = [
         },
       },
       {
+        id: 'position',
+        name: '두 지점 측정',
+        en: 'Two-Point',
+        formula: [
+          '이동량 = 이동 후 좌표 − 이동 전 좌표',
+          '펄스 변화량 = 이동 후 펄스 위치 값 − 이동 전 펄스 위치 값',
+          '엔코더 분해능(µm) = 이동량(mm) / 펄스 변화량 × 1000',
+          '스케일러 = 엔코더 분해능 / 이미지 분해능',
+        ],
+        inputs: [
+          { key: 'mmBefore', label: '이동 전 좌표', en: 'Position Before', unit: 'mm', default: 0, step: 1,
+            hint: '물류의 mm 좌표' },
+          { key: 'pulseBefore', label: '이동 전 펄스 위치 값', en: 'Pulse Before', unit: 'pulse', default: 0, step: 1,
+            hint: '컨트롤러에서 읽은 위치값(AP)' },
+          { key: 'mmAfter', label: '이동 후 좌표', en: 'Position After', unit: 'mm', default: 100, step: 1 },
+          { key: 'pulseAfter', label: '이동 후 펄스 위치 값', en: 'Pulse After', unit: 'pulse', default: 500, step: 1 },
+          { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 18.3, min: 0.001, step: 0.1 },
+        ],
+        outputs: [
+          { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse', digits: 4, primary: true },
+          { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 3, primary: true },
+          { key: 'travelMm', label: '이동량', en: 'Travel', unit: 'mm', digits: 3 },
+          { key: 'pulseDelta', label: '펄스 변화량', en: 'Pulse Change', unit: 'pulse', digits: 0 },
+          { key: 'pulsePerMm', label: '1 mm 당 펄스', en: 'Pulses per mm', unit: 'pulse', digits: 2 },
+          { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 3 },
+        ],
+        compute(v) {
+          const travelMm = v.mmAfter - v.mmBefore;
+          const pulseDelta = v.pulseAfter - v.pulseBefore;
+          // 되돌아오는 방향으로 재도 분해능 자체는 같다. 부호는 경고에서 따로 짚는다.
+          const encoderUm = (Math.abs(travelMm) / Math.abs(pulseDelta)) * 1000;
+          return {
+            encoderUm,
+            scaler: encoderUm / v.imageUm,
+            travelMm,
+            pulseDelta,
+            pulsePerMm: Math.abs(pulseDelta) / Math.abs(travelMm),
+            divider: v.imageUm / encoderUm,
+            _reversed: travelMm * pulseDelta < 0,
+          };
+        },
+        warn(v, o) {
+          if (o.pulseDelta === 0 || o.travelMm === 0) {
+            return [{
+              level: 'danger',
+              text: '이동량이나 펄스 변화량이 0 입니다. 두 지점이 실제로 달라야 분해능을 구할 수 있습니다.',
+            }];
+          }
+
+          const warns = [];
+          if (o._reversed) {
+            warns.push({
+              level: 'warn',
+              text: '좌표는 늘었는데 펄스가 줄었습니다(또는 그 반대). 엔코더 계수 방향이 이송 방향과 반대라는 뜻이므로, A/B 상을 바꾸거나 컨트롤러에서 방향을 뒤집어야 합니다.',
+            });
+          }
+          if (Math.abs(o.pulseDelta) < 1000) {
+            warns.push({
+              level: 'warn',
+              text: `펄스 변화량이 ${Math.abs(o.pulseDelta)} 뿐입니다. 세는 오차가 ±1 펄스만 있어도 분해능이 ${(100 / Math.abs(o.pulseDelta)).toFixed(2)} % 틀어집니다. 더 멀리 이동시켜 재세요.`,
+            });
+          }
+          if (o.encoderUm > v.imageUm) {
+            warns.push({
+              level: 'warn',
+              text: `엔코더 한 펄스가 ${o.encoderUm.toFixed(2)} µm 로 픽셀보다 굵습니다. 펄스마다 찍으면 Y 방향이 ${o.scaler.toFixed(2)} 배 늘어납니다.`,
+            });
+          } else {
+            warns.push({
+              level: 'info',
+              text: `분주비 ${o.divider.toFixed(2)} 로 나눠 촬상하면 됩니다. 분주비 계산기에서 트리거 설정값을 구하세요.`,
+            });
+          }
+          return warns;
+        },
+      },
+      {
         id: 'rotary',
         name: '로터리 엔코더',
         en: 'Rotary Encoder',
