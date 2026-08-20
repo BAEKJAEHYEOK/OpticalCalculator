@@ -286,6 +286,91 @@ check('듀티 %', ost.dutyPct, 200e-6 * 30 * 100, 1e-12);
 check('평균 부하', ost.load, 200e-6 * 30 * 5, 1e-12);
 check('허용 오버드라이브', ost.maxOverdrive, 1 / (200e-6 * 30), 1e-9);
 
+head('[스트로브 · 허용 펄스 폭]  오버드라이브 5배, 30 Hz');
+const oslim = modeOf('strobe', 'limit').compute({ freqHz: 30, overdrive: 5, derate: 0.8 });
+check('허용 듀티 %', oslim.maxDutyPct, 20, 1e-12);
+check('최대 펄스 폭 µs', oslim.maxPulseUs, (1 / 5 / 30) * 1e6, 1e-6);
+check('권장 펄스 폭 µs', oslim.safePulseUs, (1 / 5 / 30) * 1e6 * 0.8, 1e-6);
+// 역방향: 권장 펄스 폭을 듀티 모드에 넣으면 평균 부하가 정확히 정격 여유가 되어야 한다.
+check('권장 펄스 폭의 평균 부하 = 정격 여유',
+  modeOf('strobe', 'duty').compute({ pulseUs: oslim.safePulseUs, freqHz: 30, overdrive: 5 }).load, 0.8, 1e-9);
+check('최대 펄스 폭의 평균 부하 = 정격',
+  modeOf('strobe', 'duty').compute({ pulseUs: oslim.maxPulseUs, freqHz: 30, overdrive: 5 }).load, 1, 1e-9);
+
+head('[스트로브 타이밍]  카메라 20 µs / 노출 300 µs, 조명 30 µs / 펄스 200 µs');
+const vst = { camDelayUs: 20, exposureUs: 300, lightDelayUs: 30, pulseUs: 200, jitterUs: 5 };
+const ostim = modeOf('strobe-timing').compute(vst);
+check('겹침 시간 µs', ostim.overlapUs, 200, 1e-12);
+check('광량 취득률 %', ostim.captureRatio, 100, 1e-12);
+check('앞 여유 µs', ostim.leadUs, 10, 1e-12);
+check('뒤 여유 µs', ostim.tailUs, 90, 1e-12);
+check('권장 조명 지연 µs', ostim.recommendedDelayUs, 20 + (300 - 200) / 2, 1e-12);
+// 권장 지연을 넣으면 앞뒤 여유가 같아져야 한다.
+const ostBal = modeOf('strobe-timing').compute({ ...vst, lightDelayUs: ostim.recommendedDelayUs });
+check('권장 지연에서 앞뒤 여유 일치', ostBal.leadUs, ostBal.tailUs, 1e-12);
+check('권장 지연에서도 취득률 100 %', ostBal.captureRatio, 100, 1e-12);
+// 펄스가 노출 끝을 넘어가면 그만큼 버려진다.
+const ostLate = modeOf('strobe-timing').compute({ ...vst, lightDelayUs: 250 });
+check('늦은 펄스의 겹침 µs', ostLate.overlapUs, 320 - 250, 1e-12);
+check('늦은 펄스의 취득률 %', ostLate.captureRatio, (70 / 200) * 100, 1e-12);
+line(modeOf('strobe-timing').warn({ ...vst, lightDelayUs: 400 }, modeOf('strobe-timing').compute({ ...vst, lightDelayUs: 400 }))[0].level === 'danger' ? 'pass' : 'fail',
+  '노출 밖으로 완전히 벗어나면 위험 경고');
+
+head('[스트로브 모션 정지]  300 mm/s, 펄스 200 µs, 20 µm/px');
+const osfrz = modeOf('strobe-freeze', 'blur').compute({ speed: 300, pulseUs: 200, umPerPx: 20, maxBlurPx: 0.5 });
+check('블러 µm', osfrz.blurUm, (300 * 200) / 1000, 1e-12);
+check('블러 px', osfrz.blurPx, 3, 1e-12);
+check('허용 펄스 폭 µs', osfrz.maxPulseUs, (0.5 * 20 * 1000) / 300, 1e-9);
+// 왕복: 필요 펄스 폭 모드가 내놓은 값을 다시 넣으면 허용 블러가 그대로 나와야 한다.
+const ospul = modeOf('strobe-freeze', 'pulse').compute({ speed: 300, umPerPx: 20, maxBlurPx: 0.5, baseExpUs: 2000 });
+check('필요 펄스 폭 µs', ospul.pulseUs, osfrz.maxPulseUs, 1e-9);
+check('그 펄스에서 블러 px',
+  modeOf('strobe-freeze', 'blur').compute({ speed: 300, pulseUs: ospul.pulseUs, umPerPx: 20, maxBlurPx: 0.5 }).blurPx, 0.5, 1e-9);
+check('필요 오버드라이브', ospul.needOverdrive, 2000 / ospul.pulseUs, 1e-9);
+// 카메라 대분류의 모션 블러와 같은 식이어야 한다. 스트로브는 노출 자리에 펄스 폭이 들어간다.
+check('모션 블러 계산기와 일치',
+  osfrz.blurPx, modeOf('motion-blur', 'blur').compute({ speed: 300, exposureUs: 200, umPerPx: 20, allowPx: 0.5 }).blurPx, 1e-9);
+
+head('[스트로브 광량]  연속광 노출 2000 µs → 펄스 200 µs, 30 Hz');
+const osovr = modeOf('strobe-exposure', 'overdrive').compute({ contExpUs: 2000, pulseUs: 200, freqHz: 30 });
+check('필요 오버드라이브', osovr.needOverdrive, 10, 1e-12);
+check('메워야 할 밝기 stop', osovr.needStops, Math.log2(10), 1e-12);
+check('듀티 %', osovr.dutyPct, 200e-6 * 30 * 100, 1e-12);
+// 듀티 계산기가 내놓는 허용 배수와 같아야 한다.
+check('허용 배수 = 듀티 계산기 값',
+  osovr.maxOverdrive, modeOf('strobe', 'duty').compute({ pulseUs: 200, freqHz: 30, overdrive: 5 }).maxOverdrive, 1e-9);
+check('그때의 평균 부하', osovr.loadAtNeed, 200e-6 * 30 * 10, 1e-12);
+
+head('[주변광]  스트로브 20000 lux × 200 µs vs 주변광 500 lux × 1000 µs');
+const osamb = modeOf('strobe-exposure', 'ambient').compute({ strobeLux: 20000, pulseUs: 200, ambientLux: 500, exposureUs: 1000 });
+check('스트로브 노출량 lux·ms', osamb.signal, 20000 * 0.2, 1e-9);
+check('주변광 노출량 lux·ms', osamb.ambient, 500 * 1, 1e-9);
+check('신호 대 주변광비', osamb.ratio, 8, 1e-12);
+check('주변광 기여율 %', osamb.ambientPct, (0.5 / 4.5) * 100, 1e-9);
+// 노출을 펄스에 맞추면 주변광이 시간비만큼 줄어든다.
+check('노출 단축 시 비율', osamb.bestRatio, 8 * (1000 / 200), 1e-9);
+check('노출 = 펄스면 개선 여지 없음',
+  modeOf('strobe-exposure', 'ambient').compute({ strobeLux: 20000, pulseUs: 200, ambientLux: 500, exposureUs: 200 }).ratio,
+  osamb.bestRatio, 1e-9);
+
+head('[LED 발열]  3.2 V × 3.5 A, 듀티 0.6 %, 열저항 8 °C/W');
+const oledt = modeOf('led-thermal').compute({ vf: 3.2, ifPeak: 3.5, dutyPct: 0.6, rth: 8, ta: 25, tjMax: 125, effPct: 30, tempCoef: -0.5 });
+check('피크 전력 W', oledt.peakW, 3.2 * 3.5, 1e-12);
+check('평균 전력 W', oledt.avgW, 3.2 * 3.5 * 0.006, 1e-12);
+check('발열 W', oledt.heatW, 3.2 * 3.5 * 0.006 * 0.7, 1e-12);
+check('온도 상승 °C', oledt.riseC, 3.2 * 3.5 * 0.006 * 0.7 * 8, 1e-9);
+check('정션 온도 °C', oledt.tj, 25 + 3.2 * 3.5 * 0.006 * 0.7 * 8, 1e-9);
+check('한계까지 여유 °C', oledt.marginC, 125 - oledt.tj, 1e-9);
+check('상대 광출력 %', oledt.relOutput, (1 - 0.005 * (oledt.tj - 25)) * 100, 1e-9);
+// 효율을 0 으로 두면 전력이 전부 열이 되는 보수적 계산이다.
+check('효율 0 이면 발열 = 평균 전력',
+  modeOf('led-thermal').compute({ vf: 3.2, ifPeak: 3.5, dutyPct: 0.6, rth: 8, ta: 25, tjMax: 125, effPct: 0, tempCoef: -0.5 }).heatW,
+  oledt.avgW, 1e-12);
+// 듀티를 4배로 하면 온도 상승도 정확히 4배여야 한다.
+check('듀티 4배면 온도 상승 4배',
+  modeOf('led-thermal').compute({ vf: 3.2, ifPeak: 3.5, dutyPct: 2.4, rth: 8, ta: 25, tjMax: 125, effPct: 30, tempCoef: -0.5 }).riseC,
+  oledt.riseC * 4, 1e-9);
+
 head('[조사 영역]  발광부 50 mm, 반각 30°, 거리 300 mm');
 const olc = modeOf('light-coverage').compute({ emitterMm: 50, halfAngle: 30, distance: 300, fovW: 120 });
 check('조사 지름', olc.coverage, 50 + 2 * 300 * Math.tan(Math.PI / 6), 1e-9);

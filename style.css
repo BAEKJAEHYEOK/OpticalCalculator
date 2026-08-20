@@ -474,6 +474,12 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .d-smear { fill: var(--accent); opacity: 0.45; }
 .d-px { fill: none; stroke: var(--border-strong); stroke-width: 1; }
 .d-px-on { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1; }
+.d-window { fill: var(--info-bg); stroke: var(--info); stroke-width: 1.5; }
+.d-pulse { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
+.d-pulse-solid { fill: var(--accent); opacity: 0.8; }
+.d-overlap { fill: var(--accent); opacity: 0.16; }
+.d-trigger { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 3; }
+.d-rated { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; }
 
 .d-dim { color: var(--text-3); stroke: currentColor; stroke-width: 1; fill: none; }
 .d-dim.d-accent { color: var(--accent); }

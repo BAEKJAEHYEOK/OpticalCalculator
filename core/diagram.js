@@ -320,7 +320,7 @@ export function focusDepthView({ focusDepth, halfDepth, coc, effectiveN }) {
 /* ---------- 모션 블러 ---------- */
 
 // 노출 중 대상이 움직인 거리가 픽셀 몇 개에 걸치는지 보여준다.
-export function motionBlurView({ blurPx, blurUm, umPerPx, exposureUs }) {
+export function motionBlurView({ blurPx, blurUm, umPerPx, exposureUs, timeName = '노출' }) {
   const VB_W = 340;
   const VB_H = 180;
   const cell = 30;
@@ -349,8 +349,8 @@ export function motionBlurView({ blurPx, blurUm, umPerPx, exposureUs }) {
     dimH(x0 + cell * 0.5, x0 + cell * (0.5 + smear), y0 + cell + 26,
       `이동 ${format(blurUm, 1)} µm = ${format(blurPx, 2)} px`, { accent: true, below: true }),
     label(x0 + cell * 0.5, y0 - 12, '정지 시', 'd-label-sm'),
-    label(VB_W / 2, VB_H - 22, `1 px = ${format(umPerPx, 2)} µm  ·  노출 ${format(exposureUs, 0)} µs`, 'd-label-sm'),
-    label(VB_W / 2, VB_H - 7, '노출 동안 대상이 움직인 만큼 상이 번집니다', 'd-label-sm')
+    label(VB_W / 2, VB_H - 22, `1 px = ${format(umPerPx, 2)} µm  ·  ${timeName} ${format(exposureUs, 0)} µs`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 7, `${timeName} 동안 대상이 움직인 만큼 상이 번집니다`, 'd-label-sm')
   );
 
   return frame('모션 블러 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
@@ -668,4 +668,114 @@ export function pixelGrid({ umPerPx, minPixels, detectLimit }) {
   );
 
   return frame('해상도 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 스트로브 타이밍 ---------- */
+
+// 트리거 한 점을 기준으로 노출 창과 발광 펄스를 같은 시간축 위에 겹쳐 그린다.
+// 두 구간이 겹치는 만큼만 센서에 빛이 담기므로, 겹침 구간을 따로 칠한다.
+export function strobeTimingView({ expStart, expUs, pulseStart, pulseUs, overlapUs }) {
+  const VB_W = 340;
+  const VB_H = 226;
+  const x0 = 52;
+  const x1 = 326;
+  const W = x1 - x0;
+
+  const expEnd = expStart + expUs;
+  const pulseEnd = pulseStart + pulseUs;
+  // 축 오른쪽 끝에 도형이 닿지 않도록 8 % 만 여유를 준다.
+  const span = Math.max(expEnd, pulseEnd, 1e-9) * 1.08;
+  const xOf = (t) => x0 + (t / span) * W;
+  // 아주 짧은 펄스도 보이도록 최소 폭을 준다.
+  const barW = (a, b) => Math.max(2.5, xOf(b) - xOf(a));
+
+  const expY = 56;
+  const pulseY = 108;
+  const barH = 26;
+  const axisY = 148;
+
+  const kids = [];
+
+  // 겹침 구간을 두 줄에 걸쳐 세로로 칠한다. 막대보다 먼저 그려 뒤에 깔리게 한다.
+  if (overlapUs > 0) {
+    const oa = Math.max(expStart, pulseStart);
+    kids.push(
+      s('rect', {
+        x: xOf(oa),
+        y: expY - 6,
+        width: barW(oa, oa + overlapUs),
+        height: pulseY + barH + 6 - (expY - 6),
+        class: 'd-overlap',
+      })
+    );
+  }
+
+  kids.push(
+    s('line', { x1: x0, y1: 40, x2: x0, y2: axisY, class: 'd-trigger' }),
+    label(x0, 32, '트리거', 'd-label-sm'),
+
+    s('rect', { x: xOf(expStart), y: expY, width: barW(expStart, expEnd), height: barH, class: 'd-window' }),
+    label(46, expY + 17, '노출', 'd-label', 'end'),
+    label(xOf(expStart) + barW(expStart, expEnd) / 2, expY + 17, `${format(expUs, 0)} µs`, 'd-label'),
+
+    s('rect', { x: xOf(pulseStart), y: pulseY, width: barW(pulseStart, pulseEnd), height: barH, class: 'd-pulse' }),
+    label(46, pulseY + 17, '조명', 'd-label', 'end'),
+    label(xOf(pulseStart) + barW(pulseStart, pulseEnd) / 2, pulseY + 17, `${format(pulseUs, 0)} µs`, 'd-label'),
+
+    s('line', { x1: x0, y1: axisY, x2: x1 + 4, y2: axisY, class: 'd-axis' }),
+    label(x1 + 4, axisY + 13, '시간', 'd-label-sm', 'end')
+  );
+
+  if (overlapUs > 0) {
+    const oa = Math.max(expStart, pulseStart);
+    kids.push(dimH(xOf(oa), xOf(oa) + barW(oa, oa + overlapUs), axisY + 24,
+      `겹침 ${format(overlapUs, 0)} µs`, { accent: true, below: true }));
+  } else {
+    kids.push(label(VB_W / 2, axisY + 30, '겹치는 구간이 없습니다', 'd-label d-accent-fill'));
+  }
+
+  kids.push(
+    label(VB_W / 2, VB_H - 22, `펄스 중 ${format((overlapUs / pulseUs) * 100, 1)} % 만 센서에 담깁니다`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 7, '트리거를 기준으로 각 지연을 더한 위치입니다', 'd-label-sm')
+  );
+
+  return frame('스트로브 타이밍 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 스트로브 펄스 열 ---------- */
+
+// 정격 대비 얼마나 세게, 얼마나 짧게 때리는지를 한 화면에 보인다.
+// 막대 높이가 오버드라이브 배수이고, 폭이 듀티다.
+export function pulseTrainView({ pulseUs, periodMs, dutyPct, overdrive, load }) {
+  const VB_W = 340;
+  const VB_H = 208;
+  const x0 = 44;
+  const x1 = 322;
+  const W = x1 - x0;
+  const cycles = 3;
+  const per = W / cycles;
+
+  const base = 118;
+  const maxH = 60;
+  // 막대 꼭대기를 오버드라이브 배수로 두면, 정격 1× 선의 높이는 그 역수다.
+  const ratedH = maxH / Math.max(overdrive, 1);
+  const pulseW = Math.max(2.5, per * (dutyPct / 100));
+
+  const kids = [];
+  for (let i = 0; i < cycles; i++) {
+    kids.push(s('rect', { x: x0 + i * per, y: base - maxH, width: pulseW, height: maxH, class: 'd-pulse-solid' }));
+  }
+
+  kids.push(
+    s('line', { x1: x0, y1: base - ratedH, x2: x1, y2: base - ratedH, class: 'd-rated' }),
+    label(x1, base - ratedH - 5, '정격 1×', 'd-label-sm', 'end'),
+    s('line', { x1: x0 - 6, y1: base, x2: x1 + 4, y2: base, class: 'd-axis' }),
+    dimH(x0, x0 + per, base + 18, `주기 ${format(periodMs, 2)} ms`, { below: true }),
+    label(VB_W / 2, VB_H - 36, `펄스 ${format(pulseUs, 1)} µs  ·  듀티 ${format(dutyPct, 3)} %`, 'd-label'),
+    label(VB_W / 2, VB_H - 20, `피크 ${format(overdrive, 1)} ×정격  ·  평균 부하 ${format(load, 3)} ×정격`,
+      load > 1 ? 'd-label d-accent-fill' : 'd-label-sm'),
+    label(VB_W / 2, VB_H - 5, '막대 높이가 오버드라이브 배수, 폭이 듀티입니다', 'd-label-sm')
+  );
+
+  return frame('스트로브 펄스 열 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
 }
