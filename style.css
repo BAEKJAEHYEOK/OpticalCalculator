@@ -480,6 +480,15 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .d-overlap { fill: var(--accent); opacity: 0.16; }
 .d-trigger { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 3; }
 .d-rated { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; }
+.d-mark-t { fill: none; stroke: var(--info); stroke-width: 1.5; stroke-dasharray: 5 3; }
+.d-mark-m { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.d-mark-m-fill { fill: var(--accent); stroke: none; }
+.d-err { fill: var(--danger-bg); stroke: var(--danger); stroke-width: 1; stroke-dasharray: 3 3; }
+.d-curve { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 1.5; }
+.d-tail { fill: var(--danger); opacity: 0.4; stroke: none; }
+.d-spec { stroke: var(--danger); stroke-width: 1.5; }
+.d-bar { fill: var(--accent); opacity: 0.8; stroke: none; }
+.d-bar-bg { fill: var(--surface-alt); stroke: none; }
 
 .d-dim { color: var(--text-3); stroke: currentColor; stroke-width: 1; fill: none; }
 .d-dim.d-accent { color: var(--accent); }

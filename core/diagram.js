@@ -2,7 +2,7 @@
 // 용어가 그림의 어느 구간을 가리키는지 보여주고, 그 구간에 계산된 값을 함께 적는다.
 // 값 없이 도형만 그리면 의미가 없으므로 라벨은 항상 "용어 + 수치 + 단위" 형태로 쓴다.
 
-import { format } from './units.js';
+import { format, degToRad } from './units.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -778,4 +778,244 @@ export function pulseTrainView({ pulseUs, periodMs, dutyPct, overdrive, load }) 
   );
 
   return frame('스트로브 펄스 열 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 2점 마크 정렬 ---------- */
+
+// 목표 마크와 실측 마크를 겹쳐 그린다.
+// 정렬 편차는 마크 간 거리에 비해 수백 배 작아 그대로 그리면 두 점이 겹쳐 보인다.
+// 그래서 편차만 배율을 걸어 키우고, 몇 배로 키웠는지 캡션에 적는다.
+export function markAlignView({ target, measured, dX, dY, dThetaDeg, markDist }) {
+  const VB_W = 340;
+  const VB_H = 226;
+  const PL = 36;
+  const PR = 304;
+  const PT = 46;
+  const PB = 164;
+
+  const xs = target.map((p) => p[0]);
+  const ys = target.map((p) => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const spanX = Math.max(Math.max(...xs) - Math.min(...xs), 1e-9);
+  const spanY = Math.max(Math.max(...ys) - Math.min(...ys), 1e-9);
+  // 마크 쌍이 화면 폭의 70 % 를 차지하도록 맞춘다.
+  const scale = Math.min((PR - PL) / (spanX * 1.45), (PB - PT) / (spanY * 1.45));
+  const X = (x) => (PL + PR) / 2 + (x - cx) * scale;
+  const Y = (y) => (PT + PB) / 2 - (y - cy) * scale;
+
+  const devs = target.map((t, i) => [measured[i][0] - t[0], measured[i][1] - t[1]]);
+  const maxDevPx = Math.max(...devs.map((d) => Math.hypot(d[0], d[1]) * scale));
+  // 화면에서 20 px 정도로 보이게 키운다. 이미 충분히 크면 그대로 둔다.
+  const gain = maxDevPx > 1e-9 ? Math.max(1, Math.min(2000, 20 / maxDevPx)) : 1;
+
+  const ts = target.map((p) => [X(p[0]), Y(p[1])]);
+  const ms = target.map((p, i) => [X(p[0]) + devs[i][0] * scale * gain, Y(p[1]) - devs[i][1] * scale * gain]);
+
+  const kids = [
+    s('line', { x1: ts[0][0], y1: ts[0][1], x2: ts[1][0], y2: ts[1][1], class: 'd-mark-t' }),
+    s('line', { x1: ms[0][0], y1: ms[0][1], x2: ms[1][0], y2: ms[1][1], class: 'd-mark-m' }),
+  ];
+
+  for (let i = 0; i < 2; i++) {
+    kids.push(
+      s('circle', { cx: ts[i][0], cy: ts[i][1], r: 6, class: 'd-mark-t' }),
+      s('circle', { cx: ms[i][0], cy: ms[i][1], r: 4, class: 'd-mark-m-fill' })
+    );
+  }
+
+  // 마크 번호는 목표 위치 기준으로 붙인다.
+  kids.push(
+    label(ts[0][0], ts[0][1] - 12, '마크 1', 'd-label-sm'),
+    label(ts[1][0], ts[1][1] - 12, '마크 2', 'd-label-sm'),
+    label(VB_W / 2, VB_H - 42, `ΔX ${format(dX, 4)} mm  ·  ΔY ${format(dY, 4)} mm`, 'd-label d-accent-fill'),
+    label(VB_W / 2, VB_H - 25, `Δθ ${format(dThetaDeg, 4)}°  ·  마크 간 ${format(markDist, 3)} mm`, 'd-label'),
+    label(VB_W / 2, VB_H - 8,
+      gain > 1.5 ? `목표 점선 · 실측 실선 — 편차 ×${format(gain, 0)} 과장` : '목표 점선 · 실측 실선',
+      'd-label-sm')
+  );
+
+  return frame('2점 마크 정렬 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
+}
+
+/* ---------- 정렬 정밀도 예산 ---------- */
+
+// 위쪽은 마크 두 개와 각각의 위치 오차, 아래쪽은 그 오차가 만드는 각도 오차가
+// 반경 끝에서 얼마가 되는지를 보인다. 두 그림이 한 화면에 있어야
+// "마크를 멀리 두면 각도가 좋아진다" 가 눈으로 읽힌다.
+export function alignBudgetView({ markDistMm, posErrUm, angErrUrad, radiusMm, edgeErrUm }) {
+  const VB_W = 340;
+  const VB_H = 228;
+  const mx1 = 66;
+  const mx2 = 274;
+  const my = 60;
+
+  const pivotX = 52;
+  const armY = 150;
+  const armEnd = 296;
+  // 각도 오차는 µrad 단위라 그대로 그리면 보이지 않는다. 22 px 로 고정해 과장한다.
+  const lift = 22;
+
+  return frame(
+    '정렬 정밀도 예산 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('line', { x1: mx1, y1: my, x2: mx2, y2: my, class: 'd-axis' }),
+    s('circle', { cx: mx1, cy: my, r: 11, class: 'd-err' }),
+    s('circle', { cx: mx2, cy: my, r: 11, class: 'd-err' }),
+    s('circle', { cx: mx1, cy: my, r: 3, class: 'd-spot' }),
+    s('circle', { cx: mx2, cy: my, r: 3, class: 'd-spot' }),
+    label(mx1, my - 18, `±${format(posErrUm, 2)} µm`, 'd-label-sm'),
+    label(mx2, my - 18, `±${format(posErrUm, 2)} µm`, 'd-label-sm'),
+    dimH(mx1, mx2, my + 26, `마크 간 거리 ${format(markDistMm, 1)} mm`, { below: true }),
+
+    s('line', { x1: pivotX, y1: armY, x2: armEnd, y2: armY, class: 'd-axis' }),
+    s('polygon', {
+      points: `${pivotX},${armY} ${armEnd},${armY} ${armEnd},${armY - lift}`,
+      class: 'd-cone',
+    }),
+    s('circle', { cx: pivotX, cy: armY, r: 3, class: 'd-spot' }),
+    label(pivotX + 4, armY + 15, `θ 오차 ${format(angErrUrad, 2)} µrad`, 'd-label-sm', 'start'),
+    dimV(armY, armY - lift, armEnd + 20, `${format(edgeErrUm, 2)} µm`, { accent: true }),
+    label((pivotX + armEnd) / 2, armY - 6, `반경 ${format(radiusMm, 1)} mm`, 'd-label-sm'),
+
+    label(VB_W / 2, VB_H - 24, '마크 간 거리를 늘리면 각도 오차가 그만큼 줄어듭니다', 'd-label-sm'),
+    label(VB_W / 2, VB_H - 8, '개략도 — 오차 과장', 'd-label-sm')
+  );
+}
+
+/* ---------- 회전 중심 보정 ---------- */
+
+// 회전 중심과 기준점이 떨어져 있으면, θ 만 돌려도 기준점은 호를 따라 밀린다.
+// 그 밀린 양이 XY 로 되돌려야 하는 보정량이다.
+export function rotationCenterView({ radiusMm, thetaDeg, shiftUm }) {
+  const VB_W = 340;
+  const VB_H = 204;
+  const ox = 96;
+  const oy = 128;
+  const r = 118;
+  // 실제 보정각은 1° 미만이라 그대로 그리면 호가 보이지 않는다.
+  const drawDeg = Math.sign(thetaDeg || 1) * 17;
+  const a = degToRad(drawDeg);
+
+  const px = ox + r;
+  const py = oy;
+  const qx = ox + r * Math.cos(a);
+  const qy = oy - r * Math.sin(a);
+
+  return frame(
+    '회전 중심 보정 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('line', { x1: ox, y1: oy, x2: px, y2: py, class: 'd-axis' }),
+    s('line', { x1: ox, y1: oy, x2: qx, y2: qy, class: 'd-ray' }),
+    s('path', { d: `M ${ox + 34},${oy} A 34,34 0 0 ${drawDeg > 0 ? 1 : 0} ${ox + 34 * Math.cos(a)},${oy - 34 * Math.sin(a)}`, class: 'd-dim' }),
+    label(ox + 44, oy - 14 * Math.sign(drawDeg), `θ ${format(thetaDeg, 4)}°`, 'd-label-sm', 'start'),
+
+    s('circle', { cx: ox, cy: oy, r: 5, class: 'd-mark-t' }),
+    s('line', { x1: ox - 9, y1: oy, x2: ox + 9, y2: oy, class: 'd-dim' }),
+    s('line', { x1: ox, y1: oy - 9, x2: ox, y2: oy + 9, class: 'd-dim' }),
+    label(ox, oy + 24, '회전 중심', 'd-label-sm'),
+
+    s('circle', { cx: px, cy: py, r: 4, class: 'd-spot' }),
+    label(px, py + 18, '기준점', 'd-label-sm'),
+    s('circle', { cx: qx, cy: qy, r: 4, class: 'd-image' }),
+    label(qx + 6, qy - 8, '회전 후', 'd-label-sm', 'start'),
+    s('line', { x1: px, y1: py, x2: qx, y2: qy, class: 'd-dim d-accent', 'marker-end': `url(#${ARROW})` }),
+
+    label(VB_W / 2, VB_H - 38, `회전 반경 ${format(radiusMm, 2)} mm`, 'd-label-sm'),
+    label(VB_W / 2, VB_H - 21, `기준점이 ${format(shiftUm, 2)} µm 밀립니다`, 'd-label d-accent-fill'),
+    label(VB_W / 2, VB_H - 5, '이 값을 XY 로 되돌려야 정렬이 맞습니다  ·  각도 과장', 'd-label-sm')
+  );
+}
+
+/* ---------- 공정능력 분포 ---------- */
+
+// 정규분포에 규격선을 겹쳐 그린다. 규격 밖으로 나간 꼬리가 곧 불량률이다.
+export function capabilityView({ lsl, usl, mean, sigma, cp, cpk, ppm }) {
+  const VB_W = 340;
+  // ±3σ 치수 라벨과 아래 두 줄이 겹치지 않도록 아래 여백을 넉넉히 잡는다.
+  const VB_H = 222;
+  const PL = 28;
+  const PR = 312;
+  const base = 152;
+  const peak = 104;
+
+  const lo = Math.min(lsl, mean - 4 * sigma);
+  const hi = Math.max(usl, mean + 4 * sigma);
+  const pad = (hi - lo) * 0.08;
+  const a = lo - pad;
+  const b = hi + pad;
+  const X = (v) => PL + ((v - a) / (b - a)) * (PR - PL);
+  const Yc = (v) => base - peak * Math.exp(-0.5 * ((v - mean) / sigma) ** 2);
+
+  const N = 96;
+  const pts = [];
+  for (let i = 0; i <= N; i++) {
+    const v = a + ((b - a) * i) / N;
+    pts.push(`${X(v).toFixed(2)},${Yc(v).toFixed(2)}`);
+  }
+
+  // 규격 밖 꼬리. 곡선 아래를 규격선까지만 채운다.
+  const tail = (from, to) => {
+    const seg = [];
+    const M = 24;
+    for (let i = 0; i <= M; i++) {
+      const v = from + ((to - from) * i) / M;
+      seg.push(`${X(v).toFixed(2)},${Yc(v).toFixed(2)}`);
+    }
+    return s('polygon', { points: `${X(from).toFixed(2)},${base} ${seg.join(' ')} ${X(to).toFixed(2)},${base}`, class: 'd-tail' });
+  };
+
+  return frame(
+    '공정능력 분포 도해',
+    `0 0 ${VB_W} ${VB_H}`,
+    s('polygon', { points: `${PL},${base} ${pts.join(' ')} ${PR},${base}`, class: 'd-curve' }),
+    tail(a, lsl),
+    tail(usl, b),
+
+    s('line', { x1: X(lsl), y1: 44, x2: X(lsl), y2: base, class: 'd-spec' }),
+    s('line', { x1: X(usl), y1: 44, x2: X(usl), y2: base, class: 'd-spec' }),
+    label(X(lsl), 38, 'LSL', 'd-label-sm'),
+    label(X(usl), 38, 'USL', 'd-label-sm'),
+
+    s('line', { x1: X(mean), y1: 56, x2: X(mean), y2: base, class: 'd-limit' }),
+    label(X(mean), 52, 'μ', 'd-label'),
+
+    s('line', { x1: PL, y1: base, x2: PR, y2: base, class: 'd-axis' }),
+    dimH(X(mean - 3 * sigma), X(mean + 3 * sigma), base + 16, '±3σ', { below: true }),
+
+    label(VB_W / 2, VB_H - 22, `Cp ${format(cp, 2)}  ·  Cpk ${format(cpk, 2)}`, 'd-label d-accent-fill'),
+    label(VB_W / 2, VB_H - 6, `규격 밖 ${format(ppm, 1)} PPM`, 'd-label-sm')
+  );
+}
+
+/* ---------- 오차 기여도 ---------- */
+
+// 어느 항목을 줄여야 총 오차가 줄어드는지 한눈에 보이게 한다.
+// 제곱합이라 가장 큰 항목 하나가 전체를 지배하는 경우가 많다.
+export function contributionBars({ items, totalUm, unit = 'µm' }) {
+  const VB_W = 340;
+  const rowH = 26;
+  const top = 34;
+  const VB_H = top + items.length * rowH + 40;
+  const barL = 116;
+  const barR = 284;
+
+  const kids = [label(VB_W / 2, 18, '오차 기여도 (제곱합 기준)', 'd-label')];
+
+  items.forEach((it, i) => {
+    const y = top + i * rowH;
+    kids.push(
+      label(barL - 8, y + 11, it.name, 'd-label-sm', 'end'),
+      s('rect', { x: barL, y, width: barR - barL, height: 14, rx: 3, class: 'd-bar-bg' }),
+      s('rect', { x: barL, y, width: Math.max(1.5, ((barR - barL) * it.pct) / 100), height: 14, rx: 3, class: 'd-bar' }),
+      label(barR + 6, y + 11, `${format(it.pct, 1)} %`, 'd-label-sm', 'start')
+    );
+  });
+
+  kids.push(
+    label(VB_W / 2, VB_H - 22, `합성 오차 ${format(totalUm, 3)} ${unit} (1σ)`, 'd-label d-accent-fill'),
+    label(VB_W / 2, VB_H - 6, '가장 큰 항목부터 줄여야 총 오차가 줄어듭니다', 'd-label-sm')
+  );
+
+  return frame('오차 기여도 도해', `0 0 ${VB_W} ${VB_H}`, ...kids);
 }

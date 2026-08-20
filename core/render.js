@@ -265,7 +265,7 @@ function renderTerms() {
   root.append(
     el('a', { class: 'back', href: '#/' }, '← 전체'),
     el('h1', { class: 'page-title' }, '용어 설명', enTag('Glossary')),
-    el('p', { class: 'page-desc' }, `광학·카메라·엔코더 용어 ${TERMS.length}개. 계산기 화면에서 점선 밑줄이 있는 용어를 누르면 바로 열립니다.`)
+    el('p', { class: 'page-desc' }, `광학·카메라·엔코더·정렬·공정능력 용어 ${TERMS.length}개. 계산기 화면에서 점선 밑줄이 있는 용어를 누르면 바로 열립니다.`)
   );
 
   const list = el('div', { class: 'card-grid' }, TERMS.map(termCard));

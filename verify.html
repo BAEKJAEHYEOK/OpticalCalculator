@@ -577,6 +577,191 @@ line(wfast.some((w) => w.level === 'danger') ? 'pass' : 'fail',
   `${wfast.some((w) => w.level === 'danger') ? 'PASS' : 'FAIL'}  주기 < 가드 타임이면 위험 경고`);
 if (!wfast.some((w) => w.level === 'danger')) failed++;
 
+head('[2점 마크 정렬]  목표 (0,0)·(100,0), 실측이 40 µm 기울어짐');
+const vma = { x1t: 0, y1t: 0, x2t: 100, y2t: 0, x1m: 0.05, y1m: 0.02, x2m: 100.05, y2m: 0.06 };
+const oma = modeOf('mark-align').compute(vma);
+check('보정 X 이동량', oma.dX, -0.05, 1e-12);
+check('보정 Y 이동량', oma.dY, -0.04, 1e-12);
+check('보정 회전각 µrad', oma.dThetaUrad, -Math.atan2(0.04, 100) * 1e6, 1e-6);
+check('목표 마크 간 거리', oma.targetDist, 100, 1e-12);
+check('실측 마크 간 거리', oma.measDist, Math.hypot(100, 0.04), 1e-12);
+check('강체 정합 잔차 µm', oma.residualUm, (Math.hypot(100, 0.04) - 100) / 2 * 1000, 1e-9);
+
+head('[마크 정렬 · 왕복]  아는 만큼 틀어 놓고 그대로 복원되는지');
+// 목표 마크를 중점 기준으로 θ0 돌리고 s0 배 키운 뒤 t 만큼 옮겨 "실측" 을 만든다.
+const th0 = 0.0005, s0 = 1.00002, tx0 = 0.03, ty0 = -0.02;
+const ctx0 = 50, cty0 = 0;
+const synth = ([x, y]) => [
+  ctx0 + s0 * ((x - ctx0) * Math.cos(th0) - (y - cty0) * Math.sin(th0)) + tx0,
+  cty0 + s0 * ((x - ctx0) * Math.sin(th0) + (y - cty0) * Math.cos(th0)) + ty0,
+];
+const [m1, m2] = [synth([0, 0]), synth([100, 0])];
+const osy = modeOf('mark-align').compute({ x1t: 0, y1t: 0, x2t: 100, y2t: 0, x1m: m1[0], y1m: m1[1], x2m: m2[0], y2m: m2[1] });
+check('회전 복원 µrad', osy.dThetaUrad, -th0 * 1e6, 1e-6);
+check('스케일 복원 ppm', osy.scalePpm, (s0 - 1) * 1e6, 1e-6);
+check('X 이동 복원', osy.dX, -tx0, 1e-12);
+check('Y 이동 복원', osy.dY, -ty0, 1e-12);
+
+head('[정렬 정밀도 예산]  20 µm/px, 0.3 px, 마크 간 100 mm, 반경 150 mm');
+const vab = { umPerPx: 20, edgeErrPx: 0.3, markDistMm: 100, radiusMm: 150, samples: 1 };
+const oab = modeOf('align-budget').compute(vab);
+check('마크 검출 오차 µm', oab.markErrUm, 6, 1e-12);
+check('병진 오차 µm', oab.posErrUm, 6 / Math.SQRT2, 1e-12);
+check('각도 오차 µrad', oab.angErrUrad, (Math.SQRT2 * 6 / 1000 / 100) * 1e6, 1e-9);
+check('끝단 오차 µm', oab.edgeErrUm, 150 * 1000 * (Math.SQRT2 * 6 / 1000 / 100), 1e-9);
+check('총 오차 = 두 성분의 제곱합', oab.totalUm, Math.hypot(oab.posErrUm, oab.edgeErrUm), 1e-12);
+// 마크 간 거리를 2배로 하면 각도 오차는 정확히 절반이어야 한다.
+check('거리 2배면 각도 오차 절반',
+  modeOf('align-budget').compute({ ...vab, markDistMm: 200 }).angErrUrad, oab.angErrUrad / 2, 1e-9);
+// 4회 평균이면 모든 오차가 절반이어야 한다.
+check('4회 평균이면 검출 오차 절반',
+  modeOf('align-budget').compute({ ...vab, samples: 4 }).markErrUm, 3, 1e-12);
+
+head('[회전 중심 보정]  반경 (150, 80), 0.02° 회전');
+const vrc = { thetaDeg: 0.02, ox: 0, oy: 0, px: 150, py: 80 };
+const orc = modeOf('rotation-center').compute(vrc);
+const thr = (0.02 * Math.PI) / 180;
+check('회전 반경 mm', orc.radiusMm, Math.hypot(150, 80), 1e-12);
+check('X 밀림 µm', orc.dxUm, ((Math.cos(thr) - 1) * 150 - Math.sin(thr) * 80) * 1000, 1e-9);
+check('Y 밀림 µm', orc.dyUm, (Math.sin(thr) * 150 + (Math.cos(thr) - 1) * 80) * 1000, 1e-9);
+// 밀림 크기는 현의 길이다. 성분의 제곱합과 같아야 한다.
+check('밀림 크기 = 성분 제곱합', orc.shiftUm, Math.hypot(orc.dxUm, orc.dyUm), 1e-6);
+check('상쇄값은 밀림의 반대 부호', orc.corrXUm, -orc.dxUm, 1e-12);
+check('회전 0 이면 밀림 0', modeOf('rotation-center').compute({ ...vrc, thetaDeg: 0 }).shiftUm, 0, 1e-12);
+
+head('[UVW 역기구학]  U −90 / V +90 / W −120 mm');
+const vuv = { dX: -0.05, dY: -0.04, dThetaDeg: -0.0229, yU: -90, yV: 90, xW: -120 };
+const ouv = modeOf('stage-kinematics', 'uvw').compute(vuv);
+const thu = (-0.0229 * Math.PI) / 180;
+check('U축 이동량', ouv.u, -0.05 - -90 * thu, 1e-12);
+check('V축 이동량', ouv.v, -0.05 - 90 * thu, 1e-12);
+check('W축 이동량', ouv.w, -0.04 + -120 * thu, 1e-12);
+// 두 X축의 차이만으로 회전각이 복원돼야 한다.
+check('검산 회전각 = 입력 회전각', ouv.checkDeg, -0.0229, 1e-12);
+// 회전이 없으면 U 와 V 가 같고 둘 다 ΔX 다.
+const ouv0 = modeOf('stage-kinematics', 'uvw').compute({ ...vuv, dThetaDeg: 0 });
+check('회전 0 이면 U = ΔX', ouv0.u, -0.05, 1e-12);
+check('회전 0 이면 U = V', ouv0.u - ouv0.v, 0, 1e-15);
+check('회전 0 이면 W = ΔY', ouv0.w, -0.04, 1e-12);
+
+head('[θ-XY 역기구학]  회전 중심 보정과 같은 값이 나와야 한다');
+const otx = modeOf('stage-kinematics', 'theta-xy').compute({ dX: -0.05, dY: -0.04, dThetaDeg: 0.02, rx: 150, ry: 80 });
+check('회전 밀림 X = 회전 중심 보정', otx.rotShiftXUm, orc.dxUm, 1e-9);
+check('회전 밀림 Y = 회전 중심 보정', otx.rotShiftYUm, orc.dyUm, 1e-9);
+check('X축 = 보정량 − 밀림', otx.stageX, -0.05 - orc.dxUm / 1000, 1e-12);
+check('θ축은 그대로 전달', otx.stageTheta, 0.02, 1e-12);
+
+head('[정렬 반복 수렴]  초기 50 µm, 게인 0.8, 바닥 0.5 µm, 공차 3 µm');
+const vcv = { e0: 50, gain: 0.8, floor: 0.5, tol: 3, maxIter: 5 };
+const ocv = modeOf('align-convergence').compute(vcv);
+check('수렴비', ocv.ratio, 0.2, 1e-12);
+check('1회 후 잔차', ocv.e1, Math.hypot(10, 0.5), 1e-12);
+check('2회 후 잔차', ocv.e2, Math.hypot(2, 0.5), 1e-12);
+check('필요 반복 횟수', ocv.needIter, 2, 0);
+check('5회 후에는 바닥에 붙음', ocv.eAtMax, Math.hypot(50 * 0.2 ** 5, 0.5), 1e-12);
+// 게인 1 이면 한 번에 바닥까지 내려간다.
+check('게인 1 이면 수렴비 0', modeOf('align-convergence').compute({ ...vcv, gain: 1 }).ratio, 0, 1e-15);
+check('게인 1 이면 1회 만에 바닥', modeOf('align-convergence').compute({ ...vcv, gain: 1 }).e1, 0.5, 1e-12);
+// 바닥이 공차보다 크면 아무리 돌려도 못 들어간다.
+line(modeOf('align-convergence')
+  .warn({ ...vcv, floor: 5 }, modeOf('align-convergence').compute({ ...vcv, floor: 5 }))
+  .some((w) => w.level === 'danger') ? 'pass' : 'fail', '반복 정밀도가 공차보다 크면 위험 경고');
+
+head('[핸드아이]  스테이지 X 10 mm 이동, 픽셀 (498.2, 8.7)');
+const ohe = modeOf('hand-eye').compute({ sx: 10, sy: 0, du: 498.2, dv: 8.7 });
+check('픽셀 이동 거리 px', ohe.pixLen, Math.hypot(498.2, 8.7), 1e-12);
+check('대상 분해능 µm/px', ohe.umPerPx, 10000 / Math.hypot(498.2, 8.7), 1e-9);
+check('카메라 회전각 °', ohe.camRotDeg, (Math.atan2(8.7, 498.2) * 180) / Math.PI, 1e-12);
+check('직교축 누설 µm/mm', ohe.crossUm, (8.7 / 498.2) * 1000, 1e-9);
+// 틀어짐이 없으면 회전각 0, 분해능은 그대로.
+const ohe0 = modeOf('hand-eye').compute({ sx: 10, sy: 0, du: 500, dv: 0 });
+check('축이 맞으면 회전각 0', ohe0.camRotDeg, 0, 1e-15);
+check('축이 맞으면 분해능 = 10 mm / 500 px', ohe0.umPerPx, 20, 1e-12);
+
+head('[정규분포]  꼬리 확률이 표준값과 맞아야 PPM 을 믿을 수 있다');
+const cap = await import('./calc/capability.js');
+check('Φ(0)', cap.normalCdf(0), 0.5, 1e-15);
+check('Φ(−1.96)', cap.normalCdf(-1.96), 0.024997895148, 1e-11);
+check('Φ(−3)', cap.normalCdf(-3), 0.001349898032, 1e-12);
+check('Φ(−4)', cap.normalCdf(-4), 3.167124183e-5, 1e-14);
+check('Φ(−6) 상대오차', cap.normalCdf(-6) / 9.865876450377e-10, 1, 1e-6);
+check('대칭성 Φ(−2) + Φ(2)', cap.normalCdf(-2) + cap.normalCdf(2), 1, 1e-15);
+
+head('[공정능력]  규격 ±10, 평균 1.2, 표준편차 2.4');
+const vpc = { usl: 10, lsl: -10, mean: 1.2, sigma: 2.4 };
+const ocap = modeOf('process-capability', 'index').compute(vpc);
+check('Cp', ocap.cp, 20 / (6 * 2.4), 1e-12);
+check('Cpu', ocap.cpu, 8.8 / 7.2, 1e-12);
+check('Cpl', ocap.cpl, 11.2 / 7.2, 1e-12);
+check('Cpk = 나쁜 쪽', ocap.cpk, 8.8 / 7.2, 1e-12);
+check('시그마 수준 = 3 Cpk', ocap.sigmaLevel, 3 * ocap.cpk, 1e-12);
+check('편심률', ocap.kOffset, 1.2 / 10, 1e-12);
+check('Cpk = Cp × (1 − 편심률)', ocap.cpk, ocap.cp * (1 - ocap.kOffset), 1e-12);
+check('PPM = 양쪽 꼬리 합', ocap.ppm,
+  (cap.normalCdf(-3 * ocap.cpu) + cap.normalCdf(-3 * ocap.cpl)) * 1e6, 1e-9);
+check('수율 %', ocap.yieldPct, 100 - ocap.ppm / 1e4, 1e-12);
+// 평균이 중앙이면 Cp 와 Cpk 가 같고, Cp 1 은 정확히 2700 PPM 이다.
+const ocapC = modeOf('process-capability', 'index').compute({ usl: 10, lsl: -10, mean: 0, sigma: 10 / 3 });
+check('중심이면 Cp = Cpk', ocapC.cpk, ocapC.cp, 1e-12);
+// 흔히 2700 PPM 이라 부르지만 정확한 값은 2 × Φ(−3) × 10⁶ = 2699.796 이다.
+check('Cp 1 이면 2699.8 PPM', ocapC.ppm, 2 * 0.001349898032 * 1e6, 1e-6);
+check('Cpm ≤ Cp (편심이 있으면)', ocap.cpm, 20 / (6 * Math.hypot(2.4, 1.2)), 1e-12);
+
+head('[목표 Cpk 역산]  Cpk 1.33 을 만족하는 표준편차');
+const opr = modeOf('process-capability', 'required').compute({ usl: 10, lsl: -10, mean: 1.2, targetCpk: 1.33 });
+check('허용 표준편차', opr.allowedSigma, 8.8 / (3 * 1.33), 1e-12);
+check('허용 산포 6σ', opr.allowedSpread, 6 * opr.allowedSigma, 1e-12);
+check('중심 정렬 시 허용 표준편차', opr.centeredSigma, 20 / (6 * 1.33), 1e-12);
+// 역산한 표준편차를 지수 계산에 넣으면 목표 Cpk 가 그대로 나와야 한다.
+check('왕복: Cpk 복원',
+  modeOf('process-capability', 'index').compute({ usl: 10, lsl: -10, mean: 1.2, sigma: opr.allowedSigma }).cpk,
+  1.33, 1e-12);
+
+head('[Gage R&R]  반복성 0.8, 재현성 0.5, 부품 4, 공차 20 µm');
+const vgr = { repeatUm: 0.8, reprodUm: 0.5, partUm: 4, tolUm: 20 };
+const ograge = modeOf('gage-rr', 'grr').compute(vgr);
+check('측정계 산포', ograge.grrUm, Math.hypot(0.8, 0.5), 1e-12);
+check('총 산포', ograge.totalUm, Math.hypot(Math.hypot(0.8, 0.5), 4), 1e-12);
+check('%GRR', ograge.pctGRR, (Math.hypot(0.8, 0.5) / Math.hypot(Math.hypot(0.8, 0.5), 4)) * 100, 1e-9);
+check('P/T 비 %', ograge.ptRatio, ((6 * Math.hypot(0.8, 0.5)) / 20) * 100, 1e-9);
+check('NDC', ograge.ndc, Math.floor((1.41 * 4) / Math.hypot(0.8, 0.5)), 0);
+// 분산이 더해지는 구조인지 확인한다.
+check('제곱합 관계', ograge.totalUm ** 2, 0.8 ** 2 + 0.5 ** 2 + 4 ** 2, 1e-9);
+
+head('[측정 오차 걷어내기]  관측 2.4, 측정계 0.943 µm');
+const otr = modeOf('gage-rr', 'true-sigma').compute({ obsSigma: 2.4, gaugeSigma: 0.943, usl: 10, lsl: -10, mean: 1.2 });
+check('실제 공정 산포', otr.trueSigma, Math.sqrt(2.4 ** 2 - 0.943 ** 2), 1e-12);
+check('관측 Cpk = 공정능력 계산기 값', otr.cpkObs, ocap.cpk, 1e-12);
+check('실제 Cpk', otr.cpkTrue, 8.8 / (3 * Math.sqrt(2.4 ** 2 - 0.943 ** 2)), 1e-12);
+check('실제 Cpk > 관측 Cpk', otr.cpkTrue - otr.cpkObs, otr.cpkGain, 1e-12);
+check('측정계 몫 %', otr.gaugeSharePct, (0.943 ** 2 / 2.4 ** 2) * 100, 1e-9);
+// 측정계가 완벽하면 관측이 곧 실제다.
+check('측정계 0 이면 실제 = 관측',
+  modeOf('gage-rr', 'true-sigma').compute({ obsSigma: 2.4, gaugeSigma: 0, usl: 10, lsl: -10, mean: 1.2 }).trueSigma,
+  2.4, 1e-12);
+
+head('[오차 배분]  1.5 / 0.94 / 1 / 2 / 0.5 µm, 공차 20 µm');
+const vtb = { e1: 1.5, e2: 0.94, e3: 1, e4: 2, e5: 0.5, tolUm: 20 };
+const otb = modeOf('tolerance-budget').compute(vtb);
+const varSum = 1.5 ** 2 + 0.94 ** 2 + 1 + 4 + 0.25;
+check('합성 오차', otb.totalUm, Math.sqrt(varSum), 1e-12);
+check('총 산포 6σ', otb.spread6, 6 * Math.sqrt(varSum), 1e-12);
+check('공차 대비 Cp', otb.cp, 20 / (6 * Math.sqrt(varSum)), 1e-12);
+check('공차 사용률 %', otb.usagePct, ((6 * Math.sqrt(varSum)) / 20) * 100, 1e-9);
+check('최대 기여율 %', otb.topPct, (4 / varSum) * 100, 1e-9);
+check('단순 합은 제곱합보다 크다', otb.sumLinear, 1.5 + 0.94 + 1 + 2 + 0.5, 1e-12);
+// 한 항목만 있으면 합성 오차가 그 항목과 같아야 한다.
+check('항목 하나면 합성 = 그 값',
+  modeOf('tolerance-budget').compute({ e1: 3, e2: 0, e3: 0, e4: 0, e5: 0, tolUm: 20 }).totalUm, 3, 1e-12);
+// 공차 대비 Cp 는 공정능력 계산기의 Cp 와 같은 정의여야 한다.
+check('Cp 정의 일치', otb.cp,
+  modeOf('process-capability', 'index').compute({ usl: 10, lsl: -10, mean: 0, sigma: otb.totalUm }).cp, 1e-12);
+
+head('[정렬 → 배분 연결]  정렬 예산의 총 오차를 오차 배분에 넣으면 그대로 반영돼야 한다');
+const chained = modeOf('tolerance-budget').compute({ e1: oab.totalUm, e2: 0, e3: 0, e4: 0, e5: 0, tolUm: 20 });
+check('정렬만 있을 때 합성 오차', chained.totalUm, oab.totalUm, 1e-12);
+check('그때의 Cp', chained.cp, 20 / (6 * oab.totalUm), 1e-12);
+
 head('[용어 사전]  중복·끊긴 링크가 없어야 하고 라벨을 충분히 덮어야 한다');
 const glo = await import('./core/glossary.js');
 const termIds = glo.TERMS.map((t) => t.id);
@@ -611,7 +796,9 @@ for (const calc of ALL) {
   }
 }
 const pct = (labelCovered / labelTotal) * 100;
-check('라벨 커버리지 %', pct, 80, 100);
+line(pct >= 80 ? 'pass' : 'fail',
+  `${pct >= 80 ? 'PASS' : 'FAIL'}  라벨 커버리지 ${pct.toFixed(1)} % (하한 80 %)`);
+if (pct < 80) failed++;
 line('note', `      덮은 라벨 ${labelCovered} / ${labelTotal}`);
 line('note', `      남은 표현 ${[...new Set(notCovered)].length}개 — 일상어는 굳이 등재하지 않는다`);
 

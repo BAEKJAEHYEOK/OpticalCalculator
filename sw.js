@@ -1,6 +1,6 @@
 // 오프라인 캐시. 현장·이동 중 네트워크 없이도 계산기가 열려야 한다.
 // 버전을 올리면 이전 캐시를 비우고 새로 받는다.
-const CACHE = 'optical-calc-v22';
+const CACHE = 'optical-calc-v24';
 
 const ASSETS = [
   './',
@@ -26,6 +26,8 @@ const ASSETS = [
   './calc/geometry.js',
   './calc/wave.js',
   './calc/encoder.js',
+  './calc/align.js',
+  './calc/capability.js',
 ];
 
 self.addEventListener('install', (e) => {
