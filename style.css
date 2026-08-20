@@ -95,7 +95,30 @@ input {
   border-radius: var(--radius);
 }
 input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+
+/* 검색창 + 우측 아이콘 버튼 */
+.search-row { display: flex; gap: 8px; }
 .search { height: 42px; }
+/* 브라우저가 그리는 기본 지우기 표시는 우리 버튼과 겹치므로 숨긴다. */
+.search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-btn {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.search-btn svg { width: 20px; height: 20px; }
+.search-btn:hover { background: var(--surface-alt); color: var(--text); }
+.search-btn.on { border-color: var(--accent); color: var(--accent); }
+.search-btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 
 /* 프로필 바 */
 .profile-bar {

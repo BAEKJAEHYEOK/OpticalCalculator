@@ -85,13 +85,13 @@ export const geometryCalculators = [
     category: 'geometry',
     name: '픽셀 ↔ mm 캘리브레이션',
     en: 'Pixel Calibration',
-    summary: '기준 물체의 실측값과 픽셀수로 축척을 정하고, 측정 픽셀을 실제 치수로 바꿉니다',
-    tags: ['캘리브레이션', 'calibration', '축척', 'scale', '픽셀', 'mm', '측정', '환산'],
+    summary: '기준 물체의 실측값과 픽셀수로 대상 분해능을 정하고, 측정 픽셀을 실제 치수로 바꿉니다',
+    tags: ['캘리브레이션', 'calibration', '분해능', '축척', 'scale', '픽셀', 'mm', '측정', '환산'],
     related: ['resolution', 'perspective-error'],
     formula: [
-      '축척(mm/px) = 기준 물체 실측 / 기준 물체 픽셀수',
-      '측정값 = 측정 픽셀수 × 축척',
-      '측정 불확실도 = 2 × 에지 검출 오차 × 축척',
+      '대상 분해능(mm/px) = 기준 물체 실측 / 기준 물체 픽셀수',
+      '측정값 = 측정 픽셀수 × 대상 분해능',
+      '측정 불확실도 = 2 × 에지 검출 오차 × 대상 분해능',
     ],
     inputs: [
       { key: 'refMm', label: '기준 물체 실측', en: 'Reference Length', unit: 'mm', default: 50, min: 0.001, step: 0.01,
@@ -103,8 +103,8 @@ export const geometryCalculators = [
     ],
     outputs: [
       { key: 'measuredMm', label: '측정값', en: 'Measured', unit: 'mm', digits: 4, primary: true },
-      { key: 'scaleMm', label: '축척', en: 'Scale', unit: 'mm/px', digits: 6, primary: true },
-      { key: 'scaleUm', label: '축척', en: 'Scale', unit: 'µm/px', digits: 3 },
+      { key: 'scaleMm', label: '대상 분해능', en: 'Spatial Resolution', unit: 'mm/px', digits: 6, primary: true },
+      { key: 'scaleUm', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', digits: 3 },
       { key: 'pxPerMm', label: '1 mm 당 픽셀', en: 'Pixels per mm', unit: 'px', digits: 2 },
       { key: 'toleranceMm', label: '측정 불확실도', en: 'Uncertainty', unit: 'mm', digits: 4 },
       { key: 'tolerancePct', label: '측정 불확실도', en: 'Uncertainty', unit: '%', digits: 3 },
@@ -128,7 +128,7 @@ export const geometryCalculators = [
       if (v.refPx < 200) {
         warns.push({
           level: 'warn',
-          text: `기준 물체가 ${v.refPx} px 밖에 안 됩니다. 기준이 짧으면 축척 오차가 그대로 전체 측정에 실립니다. FOV 를 가로지르는 큰 타깃을 쓰세요.`,
+          text: `기준 물체가 ${v.refPx} px 밖에 안 됩니다. 기준이 짧으면 분해능 오차가 그대로 전체 측정에 실립니다. FOV 를 가로지르는 큰 타깃을 쓰세요.`,
         });
       }
       if (o.tolerancePct > 1) {

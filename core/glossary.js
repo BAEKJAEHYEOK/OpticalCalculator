@@ -145,9 +145,9 @@ export const TERMS = [
   },
   {
     id: 'spatial-resolution', term: '대상 분해능', en: 'Spatial Resolution', category: 'camera',
-    aliases: ['이미지 분해능'],
+    aliases: ['이미지 분해능', '축척'],
     short: '대상 위에서 픽셀 하나가 차지하는 실제 크기(µm/px).',
-    body: '센서 픽셀 크기를 배율로 나눈 값이자, FOV 를 화소수로 나눈 값입니다. 이 값이 검사 정밀도를 결정합니다. 결함 하나를 잡으려면 보통 3 픽셀 이상 걸쳐야 하므로, 검출 한계는 이 값의 3 배쯤으로 봅니다.',
+    body: '센서 픽셀 크기를 배율로 나눈 값이자, FOV 를 화소수로 나눈 값입니다. 캘리브레이션에서 기준 물체의 실측값을 픽셀수로 나눠 구하는 값도 같은 값이며, mm/px 로 쓰면 축척이라고 부르기도 합니다. 이 값이 검사 정밀도를 결정합니다.',
     calc: 'resolution', related: ['pixel-pitch', 'nyquist', 'fov'],
   },
   {
@@ -292,8 +292,8 @@ export const TERMS = [
   {
     id: 'calibration', term: '캘리브레이션', en: 'Calibration', category: 'geometry',
     short: '픽셀 수를 실제 치수로 바꾸는 기준을 정하는 일.',
-    body: '치수를 아는 타깃을 찍어 몇 픽셀인지 세면 축척(mm/px)이 나옵니다. 기준 물체가 클수록 축척이 정확해지므로, FOV 를 가로지르는 큰 타깃을 씁니다.',
-    calc: 'pixel-calibration', related: ['spatial-resolution', 'keystone'],
+    body: '치수를 아는 타깃을 찍어 몇 픽셀인지 세면 대상 분해능(mm/px)이 나옵니다. 기준 물체가 클수록 정확해지므로 FOV 를 가로지르는 큰 타깃을 씁니다.',
+    calc: 'pixel-calibration', related: ['spatial-resolution', 'uncertainty', 'keystone'],
   },
   {
     id: 'keystone', term: '키스톤', en: 'Keystone', category: 'geometry',
@@ -597,12 +597,6 @@ export const TERMS = [
   },
 
   {
-    id: 'scale', term: '축척', en: 'Scale', category: 'geometry',
-    short: '픽셀 하나가 실제 몇 mm 인지의 환산 비.',
-    body: '치수를 아는 물체를 찍어 픽셀을 세면 나옵니다. 이 값이 틀리면 모든 측정이 같은 비율로 틀리므로, 기준 물체는 FOV 를 가로지를 만큼 큰 것을 씁니다.',
-    calc: 'pixel-calibration', related: ['calibration', 'spatial-resolution'],
-  },
-  {
     id: 'scale-change', term: '크기 변화율', en: 'Scale Change', category: 'geometry',
     short: '대상 높이가 달라졌을 때 크기가 몇 % 변하는지.',
     body: '높이차를 WD 로 나눈 값입니다. WD 300 mm 에서 높이가 5 mm 다르면 약 1.7 % 크게 찍힙니다. 측정 길이에 이 비율을 곱한 만큼이 오차가 됩니다.',
@@ -612,7 +606,7 @@ export const TERMS = [
     id: 'uncertainty', term: '측정 불확실도', en: 'Measurement Uncertainty', category: 'geometry',
     short: '에지를 어디로 볼지에 따라 생기는 측정값의 흔들림.',
     body: '양쪽 에지가 각각 흔들리므로 에지 오차의 두 배로 봅니다. 대상이 작을수록 이 몫의 비중이 커져 상대 오차가 커집니다.',
-    calc: 'pixel-calibration', related: ['calibration', 'scale'],
+    calc: 'pixel-calibration', related: ['calibration', 'spatial-resolution'],
   },
   {
     id: 'tilt', term: '경사각', en: 'Tilt Angle', category: 'geometry',

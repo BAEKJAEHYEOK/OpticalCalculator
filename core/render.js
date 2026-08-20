@@ -134,6 +134,53 @@ function calcCard(calc) {
   );
 }
 
+/* ---------- 검색창 ---------- */
+
+const ICON_SEARCH =
+  '<svg viewBox="0 0 20 20" aria-hidden="true">' +
+  '<circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+  '<line x1="12.7" y1="12.7" x2="17.5" y2="17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+  '</svg>';
+
+const ICON_CLEAR =
+  '<svg viewBox="0 0 20 20" aria-hidden="true">' +
+  '<line x1="5.5" y1="5.5" x2="14.5" y2="14.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+  '<line x1="14.5" y1="5.5" x2="5.5" y2="14.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+  '</svg>';
+
+// 검색은 입력하는 대로 즉시 걸리므로 버튼이 검색을 "실행" 하지는 않는다.
+// 대신 여기가 검색창임을 알리는 표시가 되고, 입력이 있으면 지우기로 바뀐다.
+function searchBox(placeholder, onSearch) {
+  const input = el('input', {
+    type: 'search',
+    class: 'search',
+    placeholder,
+    oninput: () => sync(),
+  });
+
+  const button = el('button', {
+    class: 'search-btn',
+    type: 'button',
+    'aria-label': '검색',
+    html: ICON_SEARCH,
+    onclick: () => {
+      if (input.value) input.value = '';
+      input.focus();
+      sync();
+    },
+  });
+
+  function sync() {
+    const filled = input.value.trim() !== '';
+    button.innerHTML = filled ? ICON_CLEAR : ICON_SEARCH;
+    button.setAttribute('aria-label', filled ? '검색어 지우기' : '검색');
+    button.classList.toggle('on', filled);
+    onSearch(input.value);
+  }
+
+  return el('div', { class: 'search-row' }, input, button);
+}
+
 /* ---------- 용어 팝업 ---------- */
 
 let termSheet = null;
@@ -201,17 +248,12 @@ function renderTerms() {
   );
 
   const list = el('div', { class: 'card-grid' }, TERMS.map(termCard));
-  const search = el('input', {
-    type: 'search',
-    class: 'search',
-    placeholder: '용어 검색 — "DOF", "분주비", "회절"',
-    oninput: (e) => {
-      const q = e.target.value.trim();
-      const hits = q ? searchTerms(q) : TERMS;
-      list.replaceChildren(
-        ...(hits.length ? hits.map(termCard) : [el('div', { class: 'empty' }, '일치하는 용어가 없습니다.')])
-      );
-    },
+  const search = searchBox('용어 검색 — "DOF", "분주비", "회절"', (raw) => {
+    const q = raw.trim();
+    const hits = q ? searchTerms(q) : TERMS;
+    list.replaceChildren(
+      ...(hits.length ? hits.map(termCard) : [el('div', { class: 'empty' }, '일치하는 용어가 없습니다.')])
+    );
   });
 
   root.append(search, list);
@@ -264,12 +306,9 @@ function renderHome() {
   root.append(profileBar());
 
   const results = el('div');
-  const search = el('input', {
-    type: 'search',
-    class: 'search',
-    placeholder: '계산기 · 용어 검색 — "DOF", "배율", "분주비"',
-    oninput: (e) => {
-      const q = e.target.value.trim();
+  const search = searchBox('계산기 · 용어 검색 — "DOF", "배율", "분주비"', (raw) => {
+    {
+      const q = raw.trim();
       sections.style.display = q ? 'none' : '';
       if (!q) return results.replaceChildren();
 
@@ -284,7 +323,7 @@ function renderHome() {
         blocks.push(el('h2', { class: 'section-title' }, '용어'), el('div', { class: 'card-grid' }, terms.map(termCard)));
       }
       results.replaceChildren(...(blocks.length ? blocks : [el('div', { class: 'empty' }, '일치하는 항목이 없습니다.')]));
-    },
+    }
   });
   root.append(search, results);
 
