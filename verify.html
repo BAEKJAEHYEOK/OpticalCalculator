@@ -44,6 +44,12 @@ function check(label, actual, expected, tol = 0.01) {
 
 const ALL = CALCULATORS;
 const byId = (id) => ALL.find((c) => c.id === id);
+
+// 엔코더가 픽셀보다 굵을 때 나오는 경고인지 확인한다.
+const scalerWarnHasCoarse = (out) =>
+  modeOf('encoder-resolution', 'scaler')
+    .warn({ encoderUm: 200, imageUm: 18.3 }, out)
+    .some((w) => w.text.includes('굵습니다'));
 const modeOf = (id, mid) =>
   mid ? byId(id).modes.find((m) => m.id === mid) : byId(id).modes[0];
 
@@ -350,23 +356,40 @@ check('격자 주기 µm', ogr.periodUm, 1000 / 600, 1e-12);
 check('1차 회절각', ogr.diffractionDeg, (Math.asin(0.55 / (1000 / 600)) * 180) / Math.PI, 1e-9);
 check('0차는 직진', modeOf('grating').compute({ linesPerMm: 600, lambdaNm: 550, order: 0, incidenceDeg: 0 }).diffractionDeg, 0, 1e-12);
 
-head('[엔코더 · 실측]  이동 100 mm 에 500 펄스, 픽셀 18.3 µm');
-const oem = modeOf('encoder-resolution', 'measured').compute({ travelMm: 100, pulses: 500, imageUm: 18.3 });
-check('엔코더 분해능 µm', oem.encoderUm, 200, 1e-9);
-check('스케일러', oem.scaler, 200 / 18.3, 1e-9);
-line(Math.abs(oem.scaler - 10.928) < 0.001 ? 'pass' : 'fail',
-  `${Math.abs(oem.scaler - 10.928) < 0.001 ? 'PASS' : 'FAIL'}  현장 계산서 값 10.928 과 일치 (${oem.scaler.toFixed(3)})`);
-if (!(Math.abs(oem.scaler - 10.928) < 0.001)) failed++;
+head('[엔코더 · 스케일러]  분해능을 알 때 — 200 µm/pulse, 픽셀 18.3 µm');
+const osc = modeOf('encoder-resolution', 'scaler').compute({ encoderUm: 200, imageUm: 18.3 });
+check('스케일러', osc.scaler, 200 / 18.3, 1e-9);
+line(Math.abs(osc.scaler - 10.928) < 0.001 ? 'pass' : 'fail',
+  `${Math.abs(osc.scaler - 10.928) < 0.001 ? 'PASS' : 'FAIL'}  현장 계산서 값 10.928 과 일치 (${osc.scaler.toFixed(3)})`);
+if (!(Math.abs(osc.scaler - 10.928) < 0.001)) failed++;
+// 엔코더가 픽셀보다 굵으면 분주비가 1 미만이라 나눠 찍을 수 없다.
+check('분주비', osc.divider, 18.3 / 200, 1e-12);
+line(scalerWarnHasCoarse(osc) ? 'pass' : 'fail',
+  `${scalerWarnHasCoarse(osc) ? 'PASS' : 'FAIL'}  엔코더가 픽셀보다 굵으면 경고`);
+if (!scalerWarnHasCoarse(osc)) failed++;
 
-head('[엔코더 · 두 지점]  0 mm/0 pulse → 100 mm/500 pulse');
+head('[엔코더 · 스케일러]  엔코더가 조밀할 때 — 2 µm/pulse, 픽셀 18.3 µm');
+const osc2 = modeOf('encoder-resolution', 'scaler').compute({ encoderUm: 2, imageUm: 18.3 });
+check('분주비', osc2.divider, 9.15, 1e-9);
+check('반올림 분주비', osc2.dividerRound, 9, 0);
+check('반내림 분주비', osc2.dividerFloor, 9, 0);
+check('반올림 시 Y 분해능', osc2.yUmRound, 18, 1e-12);
+// 분주비가 정수로 떨어지면 Y 분해능이 이미지 분해능과 정확히 같아야 한다.
+const oscInt = modeOf('encoder-resolution', 'scaler').compute({ encoderUm: 2, imageUm: 18 });
+check('정수 분주비에서 Y = 이미지 분해능', oscInt.yUmRound, 18, 1e-12);
+// 분주비 계산기와 같은 값을 내야 한다. 두 화면이 다른 답을 주면 안 된다.
+check('분주비 계산기와 일치', osc2.divider,
+  modeOf('trigger-divider').compute({ imageUm: 18.3, encoderUm: 2, speedMmS: 300, guardUs: 0.1, timerNs: 20 }).divider, 1e-12);
+
+head('[엔코더 · 실측]  0 mm/0 pulse → 100 mm/500 pulse');
 const vpos = { mmBefore: 0, pulseBefore: 0, mmAfter: 100, pulseAfter: 500, imageUm: 18.3 };
 const opos = modeOf('encoder-resolution', 'position').compute(vpos);
 check('이동량 mm', opos.travelMm, 100, 1e-12);
 check('펄스 변화량', opos.pulseDelta, 500, 1e-12);
 check('엔코더 분해능 µm', opos.encoderUm, 200, 1e-9);
-// 같은 조건이면 실측 모드와 값이 같아야 한다.
-check('실측 모드와 일치', opos.encoderUm,
-  modeOf('encoder-resolution', 'measured').compute({ travelMm: 100, pulses: 500, imageUm: 18.3 }).encoderUm, 1e-9);
+// 실측으로 구한 분해능을 스케일러 모드에 넣으면 같은 스케일러가 나와야 한다.
+check('스케일러 모드와 일치', opos.scaler,
+  modeOf('encoder-resolution', 'scaler').compute({ encoderUm: opos.encoderUm, imageUm: 18.3 }).scaler, 1e-12);
 // 0 이 아닌 좌표에서 시작해도 차이만 쓰므로 결과가 같아야 한다.
 check('오프셋이 있어도 동일',
   modeOf('encoder-resolution', 'position').compute({ mmBefore: 250, pulseBefore: 8000, mmAfter: 350, pulseAfter: 8500, imageUm: 18.3 }).encoderUm,

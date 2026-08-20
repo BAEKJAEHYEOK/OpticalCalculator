@@ -3,71 +3,104 @@
 // 트리거 보드에 넣을 펄스폭 설정값을 구한다.
 // 이 값이 맞지 않으면 Y 방향 배율이 틀어져 상이 늘어나거나 눌린다.
 
+// 엔코더가 픽셀보다 굵으면 상이 늘어나므로 그랩보드 스케일러로 보정해야 하고,
+// 조밀하면 분주비로 나눠 촬상하면 된다. 어느 쪽인지 알려주는 문구는 모드마다 같다.
+function scalerWarnings(v, o) {
+  const warns = [];
+
+  if (o.scaler > 1) {
+    warns.push({
+      level: 'warn',
+      text: `엔코더 한 펄스가 ${o.encoderUm ? o.encoderUm.toFixed(2) : v.encoderUm} µm 로 픽셀 ${v.imageUm} µm 보다 굵습니다. 펄스마다 찍으면 Y 방향이 ${o.scaler.toFixed(2)} 배 늘어나므로, 그랩보드 스케일러로 보정하거나 더 조밀한 엔코더가 필요합니다.`,
+    });
+    return warns;
+  }
+
+  if (Number.isInteger(o.divider)) {
+    warns.push({
+      level: 'info',
+      text: `분주비가 정수 ${o.divider} 로 딱 떨어집니다. Y 분해능이 이미지 분해능과 정확히 일치합니다.`,
+    });
+    return warns;
+  }
+
+  // 트리거 보드에는 정수만 들어가므로 어느 쪽으로 맞출지 미리 알려준다.
+  if (o.dividerRound !== undefined) {
+    const gapRound = Math.abs(o.yUmRound - v.imageUm);
+    const gapFloor = Math.abs(o.yUmFloor - v.imageUm);
+    const useRound = gapRound <= gapFloor;
+    const pickDiv = useRound ? o.dividerRound : o.dividerFloor;
+    const pickY = useRound ? o.yUmRound : o.yUmFloor;
+    const pct = ((pickY - v.imageUm) / v.imageUm) * 100;
+    warns.push({
+      level: Math.abs(pct) > 5 ? 'warn' : 'info',
+      text: `분주비 ${o.divider.toFixed(3)} 는 정수가 아닙니다. 트리거 보드에는 정수만 들어가므로 ${useRound ? '반올림' : '반내림'} 한 ${pickDiv} 을 쓰면 Y 분해능이 ${pickY.toFixed(3)} µm 가 되어 이미지 분해능과 ${pct.toFixed(1)} % 차이 납니다.`,
+    });
+  } else {
+    warns.push({
+      level: 'info',
+      text: `분주비 ${o.divider.toFixed(2)} 로 나눠 촬상하면 됩니다. 분주비 계산기에서 트리거 설정값을 구하세요.`,
+    });
+  }
+  return warns;
+}
+
 export const encoderCalculators = [
   {
     id: 'encoder-resolution',
     category: 'encoder',
     name: '엔코더 분해능 · 스케일러',
     en: 'Encoder Resolution',
-    summary: '엔코더 한 펄스가 이송 몇 µm 인지 구합니다. 손에 쥔 값에 맞는 탭을 고르세요',
+    summary: '엔코더 분해능을 알면 스케일러만 구하고, 모르면 스테이지를 움직여 분해능부터 구합니다',
     tags: ['엔코더', 'encoder', '분해능', '스케일러', 'scaler', '펄스', 'PPR', '체배', '롤러', '리니어'],
     related: ['trigger-divider', 'line-rate'],
     modes: [
       {
-        id: 'measured',
-        name: '이동거리 · 펄스 수',
-        en: 'Travel & Pulses',
+        id: 'scaler',
+        name: '스케일러 계산',
+        en: 'Scaler',
         formula: [
-          '엔코더 분해능(µm) = 이동거리(mm) / 펄스 수 × 1000',
           '스케일러 = 엔코더 분해능 / 이미지 분해능',
+          '분주비 = 이미지 분해능 / 엔코더 분해능',
+          'Y 분해능 = 엔코더 분해능 × 적용 분주비',
         ],
         inputs: [
-          { key: 'travelMm', label: '물류 이동거리', en: 'Travel', unit: 'mm', default: 100, min: 0.001, step: 1,
-            hint: '실제로 이동시킨 거리' },
-          { key: 'pulses', label: '펄스 수', en: 'Pulses', unit: 'pulse', default: 500, min: 1, step: 1,
-            hint: '그 거리를 이동하는 동안 세어진 펄스 수' },
-          { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 18.3, min: 0.001, step: 0.1,
+          { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse',
+            default: 2, min: 0.0001, step: 0.1,
+            hint: '제어쪽에서 알려주는 한 펄스당 이송량' },
+          { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm',
+            default: 18.3, min: 0.001, step: 0.1,
             hint: '대상 위에서 픽셀 하나가 차지하는 크기' },
         ],
         outputs: [
-          { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse', digits: 4, primary: true },
-          { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 3, primary: true },
-          { key: 'pulsePerMm', label: '1 mm 당 펄스', en: 'Pulses per mm', unit: 'pulse', digits: 2 },
-          { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 3 },
+          { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 4, primary: true },
+          { key: 'divider', label: '분주비', en: 'Divider', unit: '', digits: 4, primary: true },
+          { key: 'dividerRound', label: '적용 분주비 (반올림)', en: 'Round', unit: '', digits: 0 },
+          { key: 'yUmRound', label: '반올림 시 Y 분해능', en: 'Y Resolution', unit: 'µm', digits: 3 },
+          { key: 'dividerFloor', label: '적용 분주비 (반내림)', en: 'Floor', unit: '', digits: 0 },
+          { key: 'yUmFloor', label: '반내림 시 Y 분해능', en: 'Y Resolution', unit: 'µm', digits: 3 },
         ],
         compute(v) {
-          const encoderUm = (v.travelMm / v.pulses) * 1000;
+          const divider = v.imageUm / v.encoderUm;
+          const dividerFloor = Math.max(1, Math.floor(divider));
+          const dividerRound = Math.max(1, Math.round(divider));
           return {
-            encoderUm,
-            scaler: encoderUm / v.imageUm,
-            pulsePerMm: v.pulses / v.travelMm,
-            divider: v.imageUm / encoderUm,
+            scaler: v.encoderUm / v.imageUm,
+            divider,
+            dividerFloor,
+            dividerRound,
+            yUmFloor: v.encoderUm * dividerFloor,
+            yUmRound: v.encoderUm * dividerRound,
           };
         },
         warn(v, o) {
-          const warns = [];
-          if (o.encoderUm > v.imageUm) {
-            warns.push({
-              level: 'warn',
-              text: `엔코더 한 펄스가 ${o.encoderUm.toFixed(2)} µm 로 픽셀 ${v.imageUm} µm 보다 굵습니다. 펄스마다 찍으면 Y 방향이 ${o.scaler.toFixed(2)} 배 늘어나므로, 그랩보드 스케일러로 보정하거나 더 조밀한 엔코더가 필요합니다.`,
-            });
-          } else {
-            warns.push({
-              level: 'info',
-              text: `엔코더가 픽셀보다 조밀합니다. 분주비 ${o.divider.toFixed(2)} 로 나눠 촬상하면 됩니다. 분주비 계산기에서 트리거 설정값을 구하세요.`,
-            });
-          }
-          warns.push({
-            level: 'info',
-            text: '이동거리를 길게 잡을수록 분해능이 정확해집니다. 한 바퀴 이상 돌려 재는 것이 좋습니다.',
-          });
-          return warns;
+          return scalerWarnings(v, o);
         },
       },
       {
         id: 'position',
-        name: '이동 전후 위치값',
-        en: 'Before & After',
+        name: '엔코더 분해능 (실측)',
+        en: 'Resolution — Measured',
         formula: [
           '이동량 = 이동 후 좌표 − 이동 전 좌표',
           '펄스 변화량 = 이동 후 펄스 위치 값 − 이동 전 펄스 위치 값',
@@ -143,8 +176,8 @@ export const encoderCalculators = [
       },
       {
         id: 'rotary',
-        name: '롤러 · 엔코더 사양',
-        en: 'Roller & Encoder',
+        name: '엔코더 분해능 (사양)',
+        en: 'Resolution — From Spec',
         formula: [
           '엔코더 분해능(µm) = 롤러 지름(µm) × π / (엔코더 PPR × 체배)',
           '스케일러 = 엔코더 분해능 / 이미지 분해능',
@@ -190,8 +223,8 @@ export const encoderCalculators = [
       },
       {
         id: 'required',
-        name: '목표 분해능 역산',
-        en: 'From Target',
+        name: '필요 PPR 역산',
+        en: 'Required PPR',
         formula: [
           '필요 총 펄스 = 롤러 지름(µm) × π / 목표 엔코더 분해능(µm)',
           '필요 PPR = 필요 총 펄스 / 체배',

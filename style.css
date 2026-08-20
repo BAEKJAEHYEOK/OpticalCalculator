@@ -247,7 +247,8 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   display: block;
   font-size: 13px;
   line-height: 1.4;
-  font-weight: 500;
+  /* 광학 용어가 세 줄 중 주인공이다. 영문·설명보다 확실히 굵게 둔다. */
+  font-weight: 600;
   color: var(--text);
   margin-top: 1px;
 }
@@ -309,7 +310,7 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   letter-spacing: 0.01em;
   overflow-wrap: anywhere;
 }
-.metric-label { font-size: 12.5px; font-weight: 500; line-height: 1.4; color: var(--text-2); }
+.metric-label { font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--text-2); }
 .metric.primary .metric-en { color: var(--accent); opacity: 0.7; }
 .metric.primary .metric-label { color: var(--accent); }
 .metric-value { font-size: 22px; font-weight: 600; margin-top: 4px; overflow-wrap: anywhere; }
