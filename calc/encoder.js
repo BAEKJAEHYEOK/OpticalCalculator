@@ -271,6 +271,98 @@ export const encoderCalculators = [
   },
 
   {
+    id: 'tdi-alignment',
+    category: 'encoder',
+    name: 'TDI 정합 · 스케일러 보정',
+    en: 'TDI Alignment',
+    summary: '분주비를 정수로 넣어 버려진 소수점이 TDI 에서 얼마나 번지는지, 스케일러로 어떻게 되돌리는지 구합니다',
+    tags: ['TDI', '스미어', 'smear', '정합', '스케일러', 'scaler', 'DCF', '분주비', '늘어짐', '진동', '단수'],
+    related: ['trigger-divider', 'encoder-resolution', 'line-rate'],
+    formula: [
+      '이상 분주비 = 이미지 분해능 / 엔코더 분해능',
+      '실제 Y 분해능 = 엔코더 분해능 × 적용 분주비',
+      '스케일러 = 적용 분주비 / 이상 분주비',
+      'TDI 스미어(px) = TDI 단수 × | 1 − 스케일러 |',
+      'SW 트리거 라인레이트 = 이송 속도(mm/s) × 1000 / 이미지 분해능(µm)',
+    ],
+    inputs: [
+      { key: 'imageUm', label: '이미지 분해능', en: 'Pixel Size', unit: 'µm', default: 18.3, min: 0.001, step: 0.1,
+        hint: '대상 위 가로 픽셀 크기. Y 를 여기에 맞춰야 합니다' },
+      { key: 'encoderUm', label: '엔코더 분해능', en: 'Encoder Resolution', unit: 'µm/pulse', default: 2, min: 0.0001, step: 0.1 },
+      { key: 'dividerInt', label: '적용 분주비', en: 'Divider Entered', unit: '', default: 9, min: 1, step: 1,
+        hint: '트리거 프로그램에 실제로 넣은 정수' },
+      { key: 'tdiStages', label: 'TDI 단수', en: 'TDI Stages', unit: '', default: 256, min: 1, step: 1,
+        hint: '단수가 높을수록 오차에 민감합니다' },
+      { key: 'speedMmS', label: '이송 속도', en: 'Speed', unit: 'mm/s', default: 300, min: 0.001, step: 10,
+        hint: 'SW 트리거 라인레이트 계산용' },
+    ],
+    outputs: [
+      { key: 'smearPx', label: 'TDI 스미어', en: 'TDI Smear', unit: 'px', digits: 2, primary: true },
+      { key: 'scaler', label: '스케일러', en: 'Scaler', unit: '', digits: 5, primary: true },
+      { key: 'idealDivider', label: '이상 분주비', en: 'Ideal Divider', unit: '', digits: 4 },
+      { key: 'actualYUm', label: '실제 Y 분해능', en: 'Actual Y', unit: 'µm', digits: 4 },
+      { key: 'errorPct', label: '배율 오차', en: 'Scale Error', unit: '%', digits: 3 },
+      { key: 'scalerInv', label: '스케일러 역수', en: 'Reciprocal', unit: '', digits: 5 },
+      { key: 'maxStages', label: '1 px 이내 허용 TDI 단수', en: 'Max Stages', unit: '', digits: 0 },
+      { key: 'swLineRate', label: 'SW 트리거 라인레이트', en: 'SW Trigger Line Rate', unit: 'lines/s', digits: 1 },
+    ],
+    compute(v) {
+      const idealDivider = v.imageUm / v.encoderUm;
+      const actualYUm = v.encoderUm * v.dividerInt;
+      // 실제 이송 피치가 픽셀보다 짧으면 같은 물체를 더 많은 라인으로 찍어 Y 로 늘어난다.
+      const scaler = v.dividerInt / idealDivider;
+      const mismatch = Math.abs(1 - scaler);
+      return {
+        idealDivider,
+        actualYUm,
+        scaler,
+        scalerInv: 1 / scaler,
+        errorPct: (scaler - 1) * 100,
+        // TDI 는 단을 넘길 때마다 오차가 쌓이므로 단수에 비례해 번진다.
+        smearPx: v.tdiStages * mismatch,
+        maxStages: mismatch > 0 ? Math.floor(1 / mismatch) : Infinity,
+        swLineRate: (v.speedMmS * 1000) / v.imageUm,
+        _mismatch: mismatch,
+      };
+    },
+    warn(v, o) {
+      const warns = [];
+
+      if (o._mismatch === 0) {
+        warns.push({
+          level: 'info',
+          text: '적용 분주비가 이상 분주비와 정확히 같습니다. 스케일러 보정이 필요 없고 TDI 단수를 올려도 번지지 않습니다.',
+        });
+        return warns;
+      }
+
+      const stretched = o.scaler < 1;
+      warns.push({
+        level: o.smearPx > 1 ? 'danger' : 'warn',
+        text: `버려진 소수점 때문에 Y 방향이 ${Math.abs(o.errorPct).toFixed(2)} % ${stretched ? '늘어납니다' : '눌립니다'}. TDI ${v.tdiStages} 단에서는 ${o.smearPx.toFixed(2)} px 번집니다.`,
+      });
+
+      if (o.smearPx > 1) {
+        warns.push({
+          level: 'info',
+          text: `이 분주비로는 TDI ${o.maxStages} 단까지가 한계입니다(스미어 1 px 기준). 단수를 낮추거나 아래 두 방법 중 하나로 보정하세요.`,
+        });
+      }
+
+      warns.push({
+        level: 'info',
+        text: `보정 1 — 그랩보드 DCF 의 Y 스케일러에 ${o.scaler.toFixed(5)} 를 넣습니다. 그 항목이 "늘릴 배수" 로 정의돼 있다면 역수 ${o.scalerInv.toFixed(5)} 를 넣으세요.`,
+      });
+      warns.push({
+        level: 'info',
+        text: `보정 2 — 엔코더 트리거 대신 소프트웨어 트리거로 ${o.swLineRate.toFixed(1)} lines/s 를 직접 주면 정수 제약이 사라져 오차가 0 이 됩니다. 다만 이송 속도가 흔들리면 그대로 오차가 됩니다.`,
+      });
+
+      return warns;
+    },
+  },
+
+  {
     id: 'trigger-divider',
     category: 'encoder',
     name: '분주비 · 트리거 펄스폭',

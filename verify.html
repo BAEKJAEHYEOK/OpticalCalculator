@@ -454,6 +454,37 @@ check('엔코더 주기 µs', orot.periodUs, 13.7018, 1e-3);
 check('6분주 트리거 주기 µs', orot.periodUs * 6, 82.21, 0.05);
 check('반올림 분주비', orot.dividerRound, 6, 0);
 
+head('[TDI 정합]  이미지 18.3 µm, 엔코더 2 µm, 분주비 9 로 버림');
+const vtdi = { imageUm: 18.3, encoderUm: 2, dividerInt: 9, tdiStages: 256, speedMmS: 300 };
+const otdi = modeOf('tdi-alignment').compute(vtdi);
+check('이상 분주비', otdi.idealDivider, 9.15, 1e-12);
+check('실제 Y 분해능', otdi.actualYUm, 18, 1e-12);
+check('스케일러', otdi.scaler, 9 / 9.15, 1e-12);
+// 스케일러는 실제 Y 분해능 / 이미지 분해능 과 같아야 한다. 두 경로가 어긋나면 안 된다.
+check('스케일러 = 실제 Y / 이미지', otdi.scaler, otdi.actualYUm / 18.3, 1e-12);
+check('배율 오차 %', otdi.errorPct, (9 / 9.15 - 1) * 100, 1e-9);
+// TDI 는 단수에 비례해 번진다. 64 단과 256 단이 정확히 4 배 차이여야 한다.
+check('TDI 256 스미어 px', otdi.smearPx, 256 * (1 - 9 / 9.15), 1e-9);
+const otdi64 = modeOf('tdi-alignment').compute({ ...vtdi, tdiStages: 64 });
+check('TDI 64 스미어 px', otdi64.smearPx, 64 * (1 - 9 / 9.15), 1e-9);
+check('단수 4배면 스미어도 4배', otdi.smearPx, otdi64.smearPx * 4, 1e-9);
+check('1 px 허용 단수', otdi.maxStages, Math.floor(1 / (1 - 9 / 9.15)), 0);
+check('소프트웨어 트리거 라인레이트', otdi.swLineRate, (300 * 1000) / 18.3, 1e-9);
+// 분주비가 정수로 떨어지면 번지지 않아야 한다.
+const otdiExact = modeOf('tdi-alignment').compute({ imageUm: 18, encoderUm: 2, dividerInt: 9, tdiStages: 256, speedMmS: 300 });
+check('정수 분주비면 스미어 0', otdiExact.smearPx, 0, 1e-12);
+check('정수 분주비면 스케일러 1', otdiExact.scaler, 1, 1e-12);
+// 이상 분주비는 분주비 계산기와 같아야 한다.
+check('분주비 계산기와 일치', otdi.idealDivider,
+  modeOf('trigger-divider').compute({ imageUm: 18.3, encoderUm: 2, speedMmS: 300, guardUs: 0.1, timerNs: 20 }).divider, 1e-12);
+// 소프트웨어 트리거 라인레이트는 라인스캔 계산기와 같은 식이어야 한다.
+check('라인스캔 계산기와 일치', otdi.swLineRate,
+  modeOf('line-rate').compute({ speed: 300, umPerLine: 18.3, widthPx: 8192, bitDepth: 8 }).lineRate, 1e-9);
+const wtdi = modeOf('tdi-alignment').warn(vtdi, otdi);
+line(wtdi.some((w) => w.level === 'danger') ? 'pass' : 'fail',
+  `${wtdi.some((w) => w.level === 'danger') ? 'PASS' : 'FAIL'}  스미어 1 px 초과 시 위험 경고`);
+if (!wtdi.some((w) => w.level === 'danger')) failed++;
+
 head('[분주비 · 경계]  속도가 너무 빠르면 펄스폭이 남지 않아야 한다');
 const vfast = { imageUm: 18, encoderUm: 0.5, speedMmS: 20000, guardUs: 0.1, timerNs: 20 };
 const wfast = modeOf('trigger-divider').warn(vfast, modeOf('trigger-divider').compute(vfast));

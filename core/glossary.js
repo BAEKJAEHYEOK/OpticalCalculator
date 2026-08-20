@@ -672,6 +672,27 @@ export const TERMS = [
     calc: 'encoder-resolution', related: ['encoder-resolution', 'ppr', 'multiplier'],
   },
   {
+    id: 'tdi', term: 'TDI', en: 'Time Delay Integration', category: 'camera',
+    aliases: ['TDI 단수'],
+    short: '같은 지점을 여러 단에 걸쳐 누적 노출하는 라인스캔 방식.',
+    body: '이송을 따라가며 전하를 단에서 단으로 옮겨 담아 신호를 키웁니다. 256 단이면 한 번 찍는 것보다 훨씬 밝아 어두운 검사에 씁니다. 다만 단을 넘길 때마다 이송과 어긋난 몫이 쌓이므로 단수가 높을수록 트리거 정합에 예민해집니다.',
+    calc: 'tdi-alignment', related: ['tdi-smear', 'divider', 'line-rate'],
+  },
+  {
+    id: 'sw-trigger', term: 'SW 트리거', en: 'Software Trigger', category: 'encoder',
+    aliases: ['소프트웨어 트리거'],
+    short: '엔코더 신호 대신 정해진 주기로 촬상 신호를 주는 방식.',
+    body: '라인레이트를 직접 계산해 넣으므로 분주비의 정수 제약이 사라져 Y 배율 오차가 0 이 됩니다. 다만 이송 속도가 흔들리면 그대로 상이 늘어나거나 눌리므로, 속도가 안정된 장비에서만 씁니다.',
+    calc: 'tdi-alignment', related: ['tdi-smear', 'line-rate', 'divider'],
+  },
+  {
+    id: 'tdi-smear', term: 'TDI 스미어', en: 'TDI Smear', category: 'camera',
+    aliases: ['스미어'],
+    short: 'TDI 단을 지나며 어긋남이 쌓여 상이 이송 방향으로 번지는 것.',
+    body: '한 단마다 생기는 오차에 단수를 곱한 만큼 번집니다. 방향이 있는 번짐이라 진동이나 흔들림처럼 보입니다. 1 px 이내로 잡으려면 분주비 오차가 TDI 단수의 역수보다 작아야 하므로 256 단이면 0.39 % 이내여야 합니다.',
+    calc: 'tdi-alignment', related: ['tdi', 'divider', 'scaler'],
+  },
+  {
     id: 'pixels-on-defect', term: '결함 판정 픽셀수', en: 'Pixels on Defect', category: 'camera',
     short: '결함 하나를 몇 픽셀로 잡아야 판정할지 정하는 기준.',
     body: '1 픽셀에 걸치는 결함은 잡음과 구분되지 않습니다. 나이퀴스트 기준으로 최소 2 픽셀, 안정적인 판정에는 3~5 픽셀을 씁니다. 이 값에 대상 분해능을 곱한 것이 검출 한계입니다.',
