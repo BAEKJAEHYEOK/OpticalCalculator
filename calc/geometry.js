@@ -211,7 +211,7 @@ export const geometryCalculators = [
         hint: '렌즈 스펙시트의 Telecentricity. 보통 0.05~0.5°' },
       { key: 'heightMm', label: '대상 높이차', en: 'Height Difference', unit: 'mm', default: 5, min: 0, step: 0.1 },
       { key: 'umPerPx', label: '대상 분해능', en: 'Spatial Resolution', unit: 'µm/px', default: 23.44, min: 0.01 },
-      { key: 'wd', label: '비교용 WD', en: 'Working Distance for Comparison', unit: 'mm', profile: 'workingDistance', min: 1, step: 1,
+      { key: 'wd', label: '비교용 WD', en: 'WD for Comparison', unit: 'mm', profile: 'workingDistance', min: 1, step: 1,
         hint: '같은 조건의 일반 렌즈와 비교하기 위한 WD' },
       { key: 'lengthMm', label: '측정 길이', en: 'Measured Length', unit: 'mm', default: 50, min: 0.01, step: 1 },
     ],

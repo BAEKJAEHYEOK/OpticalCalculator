@@ -25,6 +25,27 @@ const enTag = (text) => (text ? el('span', { class: 'en' }, text) : null);
 // 계산 중에 모르는 용어를 만나면 그 자리에서 뜻을 볼 수 있어야 한다.
 const withTerms = (text) => annotate(text, showTermSheet) || text;
 
+// 라벨은 세 줄로 쌓는다.
+//   영문 + 단위 (작게) / 국문 용어 (강조) / 부연 설명 (작게)
+// 한 줄에 이어 붙이면 좁은 칸에서 아무 데서나 접혀 읽기 어렵다.
+// 줄을 나누면 각 줄이 짧아 접힐 일 자체가 줄어든다.
+function stackedLabel({ en, unit, label, hint, optional }, prefix) {
+  const top = [];
+  if (en) top.push(en);
+  if (unit) top.push(el('span', { class: `${prefix}-unit` }, en ? ` ${unit}` : unit));
+
+  return [
+    top.length ? el('span', { class: `${prefix}-en` }, ...top) : null,
+    el(
+      'span',
+      { class: `${prefix}-label` },
+      withTerms(label),
+      optional ? el('span', { class: 'field-opt' }, ' 선택') : null
+    ),
+    hint ? el('span', { class: 'field-hint' }, hint) : null,
+  ];
+}
+
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -419,7 +440,9 @@ function renderCalculator(calcId, modeId) {
         el(
           'div',
           { class: `metric ${o.primary ? 'primary' : ''}` },
-          el('div', { class: 'metric-label' }, withTerms(o.label), enTag(o.en)),
+          // 입력 칸과 같은 순서로 쌓는다 — 영문, 국문 용어, 값.
+          o.en ? el('div', { class: 'metric-en' }, o.en) : null,
+          el('div', { class: 'metric-label' }, withTerms(o.label)),
           el(
             'div',
             { class: 'metric-value' },
@@ -471,16 +494,8 @@ function renderCalculator(calcId, modeId) {
         el(
           'span',
           { class: 'field-head' },
-          el(
-            'span',
-            { class: 'field-label' },
-            withTerms(f.label),
-            enTag(f.en),
-            f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null,
-            f.optional ? el('span', { class: 'field-opt' }, ' 선택') : null
-          ),
-          // 이름만으로 헷갈리는 항목에 한 줄 설명을 붙인다.
-          f.hint ? el('span', { class: 'field-hint' }, f.hint) : null
+          // 이름만으로 헷갈리는 항목에는 hint 로 한 줄 설명이 함께 붙는다.
+          stackedLabel(f, 'field')
         ),
         input
       );
@@ -627,13 +642,7 @@ function renderProfile() {
         el(
           'span',
           { class: 'field-head' },
-          el(
-            'span',
-            { class: 'field-label' },
-            withTerms(f.label),
-            enTag(f.en),
-            f.unit ? el('span', { class: 'field-unit' }, ` ${f.unit}`) : null
-          )
+          stackedLabel(f, 'field')
         ),
         el('input', {
           type: 'number',

@@ -224,12 +224,34 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 10px;
 }
+/* 넓은 화면에서는 본문이 좌우 2단으로 갈려 열 폭이 오히려 휴대폰보다 좁아진다.
+   하한을 올려 3열이 되지 않게 막으면 긴 라벨도 한 줄에 들어간다. */
+@media (min-width: 721px) {
+  .input-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+}
 /* 라벨 줄 수나 설명 유무가 달라도 같은 행의 입력 상자가 나란히 놓이도록,
    각 칸을 세로 플렉스로 두고 라벨 덩어리가 남는 높이를 흡수하게 한다. */
 .field { display: flex; flex-direction: column; }
-.field-head { flex: 1 1 auto; margin-bottom: 5px; }
-.field-label { display: block; font-size: 12px; line-height: 1.45; color: var(--text-2); }
-.field-unit { color: var(--text-3); }
+.field-head { flex: 1 1 auto; margin-bottom: 6px; }
+
+/* 영문 · 국문 용어 · 부연 설명을 줄로 나눠 쌓는다.
+   한 줄에 이어 붙이면 좁은 칸에서 아무 데서나 접혀 읽기 어렵다. */
+.field-en {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-3);
+  letter-spacing: 0.01em;
+}
+.field-label {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--text);
+  margin-top: 1px;
+}
+.field-unit { color: var(--text-2); }
 /* 국문 라벨 뒤 영문 용어. 눈에 띄되 국문을 밀어내지 않을 만큼만 약하게. */
 .en {
   color: var(--text-3);
@@ -238,7 +260,6 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   letter-spacing: 0.01em;
 }
 .en::before { content: ' '; }
-.metric.primary .metric-label .en { color: var(--accent); opacity: 0.75; }
 .tab .en { font-size: 0.8em; }
 .tab.on .en { color: var(--accent); opacity: 0.8; }
 /* 좁은 화면에서는 탭마다 한 줄씩 차지해 본문이 밀린다. 탭 이름은 용어가 아니라
@@ -276,11 +297,22 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 10px;
 }
+@media (min-width: 721px) {
+  .output-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
+}
 .metric { background: var(--surface-alt); border-radius: var(--radius); padding: 12px 14px; }
 .metric.primary { background: var(--accent-bg); }
-.metric-label { font-size: 12px; color: var(--text-2); }
+.metric-en {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--text-3);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+.metric-label { font-size: 12.5px; font-weight: 500; line-height: 1.4; color: var(--text-2); }
+.metric.primary .metric-en { color: var(--accent); opacity: 0.7; }
 .metric.primary .metric-label { color: var(--accent); }
-.metric-value { font-size: 22px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+.metric-value { font-size: 22px; font-weight: 600; margin-top: 4px; overflow-wrap: anywhere; }
 .metric.primary .metric-value { color: var(--accent); }
 .metric-unit { font-size: 13px; font-weight: 400; color: var(--text-2); }
 
